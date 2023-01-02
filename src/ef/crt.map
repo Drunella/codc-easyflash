@@ -1,0 +1,27 @@
+# loader, init, eapi
+# bank type filename address length start
+
+0 f ef-name.bin           0xbb00 0 0
+0 f init.prg              0xbf00 0 0
+0 f eapi-am29f040.prg     0xb800 0 0
+0 f menu.prg              0x8000 0 0
+
+#0 f sector-rom.bin 0xb000 0 0
+
+# file and dir data
+#0 f files.dir.bin 0xbc00 0 0
+#1 f files.data.bin 0x8000 0 0
+
+# sector files
+#13 f character.bin 0x8000 0x24000 0
+#22 f dungeona.bin 0x8000 0x24000 0
+#31 f dungeonb.bin 0x8000 0x24000 0
+
+# storage block a: save game
+#40 f character.bin 0x8000 0x600 0x21600
+
+# storage block b: storage
+#48 f character.bin 0x8000 0x400 0x21c00
+
+# storeage block c: refugee camp
+#56 f character.bin 0x8000 0x1000 0x22000
