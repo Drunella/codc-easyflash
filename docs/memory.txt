@@ -18,14 +18,14 @@ Cartridge Memory Map
      0D00      [efs directory]
      0E00      [efs directory]
      0F00      [efs directory]
-     1000      
-     1100      
-     1200      
-     1300      
-     1400      
-     1500      
-     1600      
-     1700      
+     1000      [efs directory]
+     1100      [efs directory]
+     1200      [efs directory]
+     1300      [efs directory]
+     1400      [efs directory]
+     1500      [efs directory]
+     1600      [efs directory]
+     1700      [efs directory]
      1800      EAPI
      1900      EAPI       
      1A00      EAPI
@@ -35,9 +35,8 @@ Cartridge Memory Map
      1E00      
      1F00      Startup Code & Reset Vector (init.s)
 
-01:0:0000      [rom code]
-01:1:0000      [rom code]
-
+01:0:0000      [efs data]
+01:1:0000      [efs data]
 02:0:0000      [efs data]
 02:1:0000      [efs data]
 03:0:0000      [efs data]
@@ -65,8 +64,9 @@ Cartridge Memory Map
 13:1:0000      [efs data]
 14:0:0000      [efs data]
 14:1:0000      [efs data]
-15:0:0000      [efs data]
-15:1:0000      [efs data]
+
+15:0:0000      [rom ocde]
+15:1:0000      [rom code]
 
 16:0:0000      
 16:1:0000      

@@ -70,7 +70,7 @@ mrproper:
 # easyflash
 
 # cartridge binary
-build/ef/codc-easyflash.bin: build/ef/init.prg src/ef/eapi-am29f040.prg build/ef/menu.prg
+build/ef/codc-easyflash.bin: build/ef/init.prg src/ef/eapi-am29f040.prg build/ef/menu.prg build/ef/directory.data.prg build/ef/files.data.prg build/ef/io-rom.prg
 	cp ./src/ef/crt.map ./build/ef/crt.map
 	cp ./src/ef/eapi-am29f040.prg ./build/ef/eapi-am29f040.prg
 	cp ./src/ef/ef-name.bin ./build/ef/ef-name.bin
@@ -88,9 +88,9 @@ build/ef/files.list: disks/castle.d64
 	cd ./build/files && SDL_VIDEODRIVER=dummy c1541 -attach ../../disks/castle.d64 -extract
 	mv ./build/files/.pic* ./build/files/titlepic
 	rm -f ./build/ef/files.list
-	find ~/src/codc-easyflash/build/files/titlepic -printf "%f prg\n" >> ./build/ef/files.list
-	find ~/src/codc-easyflash/build/files/z* -printf "%f prg\n" >> ./build/ef/files.list
-	find ~/src/codc-easyflash/build/files/music* -printf "%f prg\n" >> ./build/ef/files.list
+	find ./build/files/titlepic -printf "%p prg\n" >> ./build/ef/files.list
+	find ./build/files/z* -printf "%p prg\n" >> ./build/ef/files.list
+	find ./build/files/music* -printf "%p prg\n" >> ./build/ef/files.list
 
 	
 # easyflash init.prg
@@ -101,10 +101,24 @@ build/ef/init.prg: build/ef/init.o
 build/ef/menu.prg: $(EF_MENU_FILES)
 	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/menu.map -Ln ./build/ef/menu.lst -o $@ -C src/ef/menu.cfg c64.lib $(EF_MENU_FILES)
 
+# object.prg
+build/ef/object.prg:
+	echo -en "\00\00" > ./build/ef/object.prg
+	echo "./build/ef/object.prg prg" >> ./build/ef/files.list
+
+# sound.prg
+build/ef/sound.prg:
+	echo -en "\00\00" > ./build/ef/sound.prg
+	echo "./build/ef/sound.prg prg" >> ./build/ef/files.list
+
+# io-rom.prg
+build/ef/io-rom.prg:
+	echo -en "\00\00" > ./build/ef/io-rom.prg
+
 
 # build efs
-build/ef/directory.data.bin build/ef/files.data.bin: build/ef/files.list build/ef/object.prg
-	tools/mkefs.py -v -o ./src/disks.cfg  -x ./src/ef/exclude.cfg -f ./build/ef.f -e crunch -d ./build/ef
+build/ef/directory.data.prg build/ef/files.data.prg: build/ef/files.list build/ef/object.prg build/ef/sound.prg
+	tools/mkefs.py -v -s 229376 -l ./build/ef/files.list -f . -d ./build/ef
 
 # sector-rom.prg
 #build/ef/sector-rom.bin: build/ef/io-sector.o

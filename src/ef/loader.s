@@ -31,8 +31,10 @@
 
 
 .import _load_eapi
-.import wrapper_setnam
-.import wrapper_load
+.import _wrapper_setnam
+.import _wrapper_load
+.import _wrapper_save
+
 
 .export _init_loader
 .export _startup_game
@@ -123,12 +125,12 @@
     titlepicture_name_length = titlepicture_name_end - titlepicture_name
 
     gameobject_name:
-        .byte "objects"
+        .byte "object"
     gameobject_name_end:
     gameobject_name_length = gameobject_name_end - gameobject_name
 
     sounds_name:
-        .byte "sounds"
+        .byte "sound"
     sounds_name_end:
     sounds_name_length = sounds_name_end - sounds_name
 
@@ -150,11 +152,11 @@
         lda #titlepicture_name_length
         ldx #<titlepicture_name
         ldy #>titlepicture_name
-        jsr wrapper_setnam
+        jsr _wrapper_setnam
         lda #$00
         ldx #$00
         ldy #$08
-        jsr wrapper_load
+        jsr _wrapper_load
 
         ; show pic
         lda #$40   
@@ -236,21 +238,21 @@
         lda #gameobject_name_length
         ldx #<gameobject_name
         ldy #>gameobject_name
-        jsr wrapper_setnam
+        jsr _wrapper_setnam
         lda #$00
         ldx #$00
         ldy #$08
-        jsr wrapper_load
+        jsr _wrapper_load
 
         ; load sound
         lda #sounds_name_length
         ldx #<sounds_name
         ldy #>sounds_name
-        jsr wrapper_setnam
+        jsr _wrapper_setnam
         lda #$00
         ldx #$00
         ldy #$b9
-        jsr wrapper_load
+        jsr _wrapper_load
 
         ; start game
         jmp $0800

@@ -17,8 +17,9 @@
 .include "easyflash.i"
 
 
-.export wrapper_setnam
-.export wrapper_load
+.export _wrapper_setnam
+.export _wrapper_load
+.export _wrapper_save
 
 
 .segment "IO_WRAPPER"
@@ -36,41 +37,90 @@
         jmp wrapper_save_body
 
 
+    backup_zeropage:
+        ldx #$07
+    :   lda $f8, x
+        sta zeropage_backup, x
+        dex
+        bpl :-
+        rts
+
+
+    restore_zeropage:
+        ldx #$07
+    :   lda zeropage_backup, x
+        sta $f8, x
+        dex
+        bpl :-
+        rts
+
+
     wrapper_setnam_body:
         ; A: length; X/Y: name address (x low)
         sta filename_length
         stx filename_address
         sty filename_address + 1;
+        clc  ; no error
         rts
 
 
     wrapper_load_body:
-        ; A: 0=load address in XY, 1=load address from file; X/Y: load address
+        ; A: 0=load to address, 1=load to X/Y; X/Y: address
+        sta load_mode
         stx load_address
         sty load_address + 1
+        jsr backup_zeropage
 
+        jsr restore_zeropage
+        clc ; no error
         rts
 
 
     wrapper_save_body:
+        ; A: address of zero page with startaddress; X/Y: end address + 1
+        stx save_end_address
+        sty save_end_address + 1
+        tax
+        lda $00, x
+        sta save_start_address
+        lda $01, x
+        sta save_start_address + 1
+        jsr backup_zeropage
+
+        jsr restore_zeropage
+        clc ; no error
         rts
 
 
 .segment "IO_ROM"
 
-    prepare_storage:
-        rts
+    rom_load_file_entry:
+        ; name must have been prepared
 
     
 
 .segment "IO_DATA"
 
+    zeropage_backup:
+        .byte $00, $00, $00, $00, $00, $00, $00, $00
+
     filename_address:
-        .addr $0000
+        .word $0000
 
     filename_length:
         .byte $00
 
-    load_address:
-        .addr $0000
+    load_mode:
+        .byte $00
 
+    load_address:
+        .word $0000
+
+    save_start_address:
+        .word $0000
+
+    save_end_address:
+        .word $0000
+
+    work_bank:
+        .byte $00

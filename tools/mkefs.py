@@ -37,18 +37,19 @@ def efs_initialize():
     entries_files = dict()
 
 
-def efs_makefileentry(hash, data):
+def efs_makefileentry(data, maxsize):
     global data_directory, data_files, data_files_pointer, data_directory_pointer
     global entries_directory, entries_files
+    hash = hashlib.sha256(data);
     if hash in entries_files:
         # if file already created, simple return
         return entries_files[hash]
     # create new entry
     size = len(data)
+    if (data_files_pointer + size >= maxsize):
+        raise Exception("files data (" + str(data_files_pointer + size) +") exceeds maximum size (" + str(maxsize) + ")")
     offset = data_files_pointer
     data_files_pointer += size
-    #data2 = bytearray(data)
-    #data2.reverse()
     data_files[offset:offset+size] = data
     entry = dict()
     entry["bank"] = int(offset // 0x4000 + 1) # size of one bank
@@ -112,58 +113,37 @@ def efs_writepaddedstring(data, position, value):
 
 def efs_write(dirname, dataname):
     global data_directory, data_files, data_files_pointer, data_directory_pointer
+    global verbose
     with open(dirname, "wb") as f:
         f.write(b'\x00')  # write address of bank 0:1:0000 = 0xa000
         f.write(b'\xa0')
         f.write(data_directory) # always write full directory
+    if verbose:
+        print("directory written")
     with open(dataname, "wb") as f:
-        f.write(b'\x00')  # write address of bank 0:1:0000 = 0x8000
+        f.write(b'\x00')  # write address of bank b:0:0000 = 0x8000
         f.write(b'\x80')
         f.write(data_files[0:data_files_pointer])
-
+    if verbose:
+        print("data written with " + str(data_files_pointer)  + " bytes")
     
-
-#def readdisks_info(filename):
-#    disks = []
-#    with open(filename) as f:
-#        result = [line.split() for line in f]
-#    return result
-
-
-def readdisks_getdiskinfo(disks, diskname):
-    for d in disks:
-        if d[0] == diskname:
-            return d
-    return []
-
-
-#def readexcludes_info(filename):
-#    disks = []
-#    with open(filename) as f:
-#        result = [line.split() for line in f]
-
-
-def readexcludes_info(filename):
-    disks = []
-    with open(filename) as f:
-        result = [line.split() for line in f]
-    #pprint.pprint(result)
-    return result
-
 
 def load_files_directory(filename):
     directory = dict()
     with open(filename) as f:
         result = [line.split() for line in f]
         for l in result:
-          #pprint.pprint(l)
-          directory[l[0]] = l[1]
+            #pprint.pprint(l)
+            directory[l[0]] = dict();
+            directory[l[0]]["name"] = l[0]
+            directory[l[0]]["type"] = l[1]
     return directory
 
 
 def load_file(filename):
     with open(filename, "rb") as f:
         return f.read()
+
 
 def join_ws(iterator, seperator):
     it = map(str, iterator)
@@ -178,69 +158,55 @@ def main(argv):
     global data_directory
     global data_files
     global data_files_pointer
+    global verbose
+
+    verbose = False
+    maxsize = 1032192
     p = argparse.ArgumentParser()
     p.add_argument("-v", dest="verbose", action="store_true", help="Verbose output.")
     p.add_argument("-l", dest="list", action="store", required=True, help="files list file.")
-#    p.add_argument("-x", dest="excludes", action="store", required=True, help="file with list of excluded files.")
     p.add_argument("-f", dest="files", action="store", required=True, help="files directory.")
     p.add_argument("-d", dest="destination", action="store", required=True, help="destination directory.")
-#    p.add_argument("-e", dest="fileending", action="store", required=True, help="file ending of data files.")
-    #p.add_argument("-f", dest="fileoutput", action="store", required=True, help="output data content file.")
+    p.add_argument("-s", dest="maxsize", action="store", required=False, help="maximum data size.", default="1032192")
     args = p.parse_args()
-#    temp_path = os.path.join(args.build, "temp")
-#    os.makedirs(temp_path, exist_ok=True)
 
+    verbose = args.verbose
+    maxsize = int(args.maxsize, 0)
     files_list = args.list
     files_path = args.files
     os.makedirs(files_path, exist_ok=True)
     destination_path = args.destination
     os.makedirs(destination_path, exist_ok=True)
 
-#    disks = readdisks_info(args.disks)
-#    excludes = readexcludes_info(args.excludes)
-#    excludes_list = []
-#    for ex in excludes:
-#        d = readdisks_getdiskinfo(disks, ex[0])
-#        n = chr(int(d[1], 0)) + join_ws(ex[1:], " ")
-#        excludes_list.append(n.upper())
-    #pprint.pprint(excludes_list)
-
-    fd = os.path.join(files_path, "files.list")
-    entries = load_files_directory(fd)
+    entries = load_files_directory(files_list)
+    #pprint.pprint(entries)
     efs_initialize()
-
-    # add prg files
-    for e in entries:
-        d = e
-        fi = entries[e]
-        d = e.split('/')
-        dd = d[0]
-        dn = d[1]
-        name = dict()
-        tempname = chr(int(dd, 0)) + dn
-        name["name"] = tempname.upper()
-        name["type"] = 0x60|0x01   # normal prg file with start address
-        #pprint.pprint(name)
-#        if name["name"] in excludes_list:
-            #print("excluding " + name["name"])
-#            continue
-        content = load_file(os.path.join(files_path, fi + "." + args.fileending))
-        entry = efs_makefileentry(fi, content)
-        efs_makedirentry(name, entry)
-        #print("detail:" + detail[0] + " " + detail[1] + " f:" + f)
-
-    # add blocks file
-    #if not args.noblocks:
-    #    for e in disks:
-    #        if len(e) <= 2:
-    #            continue        
-    #        name = dict()
-    #        name["type"] = 0x60|0x09 # normal file without startaddress
-    #        name["name"] = chr(int(e[1], 0)) + "block"
-    #        content = load_file(os.path.join(files_path, e[0] + ".data"))
-    #        entry = efs_makefileentry(e[1], content)
-    #        efs_makedirentry(name, entry)
     
+    # add prg files
+    for key in entries:
+        value = entries[key]
+        #pprint.pprint(value)
+        name = dict()
+        if (value["type"] == "prg"):
+            # prg with startaddress
+            name["name"] = os.path.basename(value["name"])
+            name["type"] = 0x60|0x01  # normal prg file with start address
+            
+        elif (value["type"] == "bin"):
+            # bin without startaddress
+            name["name"] = os.path.basename(value["name"])
+            name["type"] = 0x60|0x09  # normal file without startaddress
+            
+        else:
+            raise Exception("unknown type " + value["type"] + " of file " + value["name"])
+
+        #pprint.pprint(name)
+        content = load_file(os.path.join(files_path, value["name"]))
+        entry = efs_makefileentry(content, maxsize)
+        efs_makedirentry(name, entry)
+        if verbose:
+            print("added file " + value["name"] + " (" + value["type"] + ") of " +(str(len(content)))+ " bytes")
+
     efs_terminatedir()
     dirs_path = os.path.join(destination_path, "directory.data.prg")
     data_path = os.path.join(destination_path, "files.data.prg")

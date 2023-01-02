@@ -15,16 +15,27 @@
 ; ----------------------------------------------------------------------------
 
 
-EAPI_SOURCE  = $b800  ; $a000 (hirom) + 1800
-EAPI_DESTINATION = $7500
-
 ; io functions
 EF_SETNAM = $0200
 EF_LOAD = $0203
 EF_SAVE = $0206
-_
 
-; eapi functions
+; io rom
+EF_ROM_START = $8000
+EF_ROM_BANK  = 15
+
+; efs banks
+EFS_FILES_DIR_BANK     = 0
+EFS_FILES_DIR_START    = $A000
+EFS_FILES_DATA_BANK    = 1
+EFS_FILES_DATA_START   = $8000
+EFS_FILES_BANKSTRATEGY = $D0
+
+
+; eapi data and functions
+EAPI_SOURCE  = $b800  ; $a000 (hirom) + 1800
+EAPI_DESTINATION = $7500
+
 EASYFLASH_BANK    = $de00
 EASYFLASH_CONTROL = $de02
 EASYFLASH_LED     = $80
@@ -43,3 +54,32 @@ EAPIWriteFlashInc = $df95
 EAPISetSlot       = $df98
 EAPIGetSlot       = $df9b
 
+; efs struct
+.struct efs_directory
+    .struct name
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+        .byte
+    .endstruct
+    flags .byte
+    bank .byte
+    reserved .byte
+    offset_low .byte
+    offset_high .byte
+    size_low .byte
+    size_high .byte
+    size_upper .byte
+.endstruct
