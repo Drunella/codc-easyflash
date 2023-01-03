@@ -1,12 +1,11 @@
 # loader, init, eapi
 # bank type filename address length start
 
+0 f io-rom.bin            0x8000 0 0
 0 f ef-name.bin           0xbb00 0 0
-0 f init.prg              0xbf00 0 0
+0 f init.bin              0xbf00 0 0
 0 f eapi-am29f040.prg     0xb800 0 0
-0 f menu.prg              0x8000 0 0
+0 f loader.bin            0xbc00 0 0
 
 0 f directory.data.prg    0xa000 0 0
 1 f files.data.prg        0x8000 0 0
-
-15 f io-rom.prg           0x8000 0 0

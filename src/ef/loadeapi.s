@@ -15,13 +15,19 @@
 ; ----------------------------------------------------------------------------
 
 
-.include "easyflash.i"
+;.include "easyflash.i"
 
+EAPI_SOURCE  = $b800
+
+EASYFLASH_CONTROL = $de02
+EASYFLASH_LED     = $80
+EASYFLASH_16K     = $07
+EASYFLASH_KILL    = $04
 
 .export _load_eapi
 
 
-.segment "CODE"
+.segment "LOADEAPI"
 
     ; void __fastcall__ load_eapi(uint8_t highaddress)
     _load_eapi: 
@@ -71,7 +77,7 @@
 
         ; init
     load_eapi_adress_i:
-        jsr EAPIInit
+        jsr $fd14
 
         ; return
         pla

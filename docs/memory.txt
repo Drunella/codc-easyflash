@@ -1,7 +1,7 @@
 Cartridge Memory Map
 ====================
 
-00:0:0000      [menu]
+00:0:0000      [rom code]
 00:1:0000      [efs directory]
      0100      [efs directory]
      0200      [efs directory]
@@ -30,9 +30,9 @@ Cartridge Memory Map
      1900      EAPI       
      1A00      EAPI
      1B00      easycart name
-     1C00      
-     1D00      
-     1E00      
+     1C00      [loader]
+     1D00      [loader]
+     1E00      [loader]
      1F00      Startup Code & Reset Vector (init.s)
 
 01:0:0000      [efs data]
@@ -64,9 +64,8 @@ Cartridge Memory Map
 13:1:0000      [efs data]
 14:0:0000      [efs data]
 14:1:0000      [efs data]
-
-15:0:0000      [rom ocde]
-15:1:0000      [rom code]
+15:0:0000      [efs data]
+15:1:0000      [efs data]
 
 16:0:0000      
 16:1:0000      

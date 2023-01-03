@@ -18,16 +18,18 @@
 .feature c_comments 
 
 
-.include "easyflash.i"
+;.include "easyflash.i"
 
 
 .import __LOADER_LOAD__
 .import __LOADER_RUN__
 .import __LOADER_SIZE__
 
-.import __IO_WRAPPER_LOAD__
-.import __IO_WRAPPER_RUN__
-.import __IO_WRAPPER_SIZE__
+;.import __IO_WRAPPER_LOAD__
+;.import __IO_WRAPPER_RUN__
+;.import __IO_WRAPPER_SIZE__
+
+.import __EAPI_START__
 
 
 .import _load_eapi
@@ -36,15 +38,62 @@
 .import _wrapper_save
 
 
-.export _init_loader
-.export _startup_game
+;.export _init_loader
+;.export _init_loader_blank
 
 
-.segment "CODE"
+.segment "LOADER_CALL"
 
     _init_loader:
         ; void __fastcall__ init_loader(void);
+        jmp init_loader_body
 
+/*    _init_loader_blank:
+        ; void __fastcall__ init_loader_blank(void);
+        jmp init_loader_blank_body*/
+
+
+
+.segment "LOADER"
+
+    init_loader_body:
+        ; lower character mode
+        lda #$17
+        sta $d018
+
+        lda $d011  ; enable output
+        ora #$10
+        sta $d011
+
+        ; write loading...
+        ldx #$00
+    :   lda loader_text, x
+        sta $07e8 - loader_text_len, x  ; write text
+        lda #$0c  ; COLOR_GRAY2
+        sta $dbe8 - loader_text_len, x  ; write color
+        inx
+        cpx #loader_text_len
+        bne :-
+
+        ; load eapi
+        lda #>__EAPI_START__
+        jsr _load_eapi
+
+        ; load menu
+        lda #menu_name_length
+        ldx #<menu_name
+        ldy #>menu_name
+        jsr _wrapper_setnam
+        lda #$01
+        jsr _wrapper_load
+        stx startup + 1
+        sty startup + 2
+        
+    startup:
+        jmp $2000
+
+
+/*    init_loader_blank_body:
         ; load segment LOADER
         lda #<__LOADER_LOAD__
         sta source_address_low
@@ -61,7 +110,7 @@
         jsr copy_segment
 
         ; load eapi
-        lda #>EAPI_DESTINATION
+        lda #>__EAPI_START__
         jsr _load_eapi
 
         ; load wrapper (IO_WRAPPER)
@@ -80,13 +129,8 @@
         jsr copy_segment
 
         rts
-
-
-    bytes_to_copy_low:
-         .byte $ff
-    bytes_to_copy_high:
-         .byte $ff
-
+*/
+/*
     copy_segment:
         lda bytes_to_copy_low
         beq copy_segment_loop
@@ -116,143 +160,20 @@
         rts
 
 
+    bytes_to_copy_low:
+         .byte $ff
+    bytes_to_copy_high:
+         .byte $ff
+*/
 
-.segment "LOADER"
-
-    titlepicture_name:
-        .byte "titlepic"
-    titlepicture_name_end:
-    titlepicture_name_length = titlepicture_name_end - titlepicture_name
-
-    gameobject_name:
-        .byte "object"
-    gameobject_name_end:
-    gameobject_name_length = gameobject_name_end - gameobject_name
-
-    sounds_name:
-        .byte "sound"
-    sounds_name_end:
-    sounds_name_length = sounds_name_end - sounds_name
+    loader_text:
+        .byte $0c, $0f, $01, $04, $09, $0e, $07, $2e, $2e, $2e  ; "loading..."
+    loader_text_end:
+    loader_text_len = loader_text_end - loader_text
 
 
-    _startup_game:
-        ; void __fastcall__ startup_game(void);
-        lda #$7f   ; disable interrupts
-        sta $dc0d
-        sta $dd0d
-        lda $dc0d
-        sta $dd0d
+    menu_name:
+        .byte $4d, $45, $4e, $55  ; "MENU"
+    menu_name_end:
+    menu_name_length = menu_name_end - menu_name
 
-        lda #$35   ; memory configuration
-        sta $01
-        lda #$2f
-        sta $00
-
-        ; load pic to $0800
-        lda #titlepicture_name_length
-        ldx #<titlepicture_name
-        ldy #>titlepicture_name
-        jsr _wrapper_setnam
-        lda #$00
-        ldx #$00
-        ldy #$08
-        jsr _wrapper_load
-
-        ; show pic
-        lda #$40   
-        sta $14    
-        lda #$27   
-        sta $15    
-        lda #$00   
-        sta $16    
-        lda #$cc   
-        sta $17    
-
-        ldy #$00
-    :   lda ($14), y
-        sta ($16), y
-        iny           
-        bne :-
-        inc $15       
-        inc $17       
-        lda $17       
-        cmp #$d0      
-        bne :-
-        lda #$00      
-        sta $14       
-        lda #$08      
-        sta $15       
-        lda #$00      
-        sta $16       
-        lda #$e0      
-        sta $17       
-
-        ldy #$00      
-    :   lda ($14), y 
-        sta ($16), y 
-        iny            
-        bne :-
-        inc $15        
-        inc $17        
-        lda $17        
-        cmp #$00       
-        bne :-
-        lda #$28       
-        sta $14        
-        lda #$2b       
-        sta $15        
-        lda #$00       
-        sta $16        
-        lda #$d8       
-        sta $17        
-        
-        ldy #$00                       
-    :   lda ($14), y  
-        sta ($16), y  
-        iny             
-        bne :-
-        inc $15         
-        inc $17         
-        lda $17         
-        cmp #$dc        
-        bne :-
-
-        lda $dd02  ; show pic
-        ora #$03  
-        sta $dd02 
-        lda $dd00 
-        and #$fc  
-        sta $dd00 
-        lda #$3b  
-        sta $d011 
-        lda #$18  
-        sta $d016 
-        lda #$38  
-        sta $d018 
-        lda #$07  
-        sta $d020 
-        lda #$01  
-        sta $d021 
-
-        ; load objects
-        lda #gameobject_name_length
-        ldx #<gameobject_name
-        ldy #>gameobject_name
-        jsr _wrapper_setnam
-        lda #$00
-        ldx #$00
-        ldy #$08
-        jsr _wrapper_load
-
-        ; load sound
-        lda #sounds_name_length
-        ldx #<sounds_name
-        ldy #>sounds_name
-        jsr _wrapper_setnam
-        lda #$00
-        ldx #$00
-        ldy #$b9
-        jsr _wrapper_load
-
-        ; start game
-        jmp $0800

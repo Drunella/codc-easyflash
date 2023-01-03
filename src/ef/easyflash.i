@@ -22,7 +22,7 @@ EF_SAVE = $0206
 
 ; io rom
 EF_ROM_START = $8000
-EF_ROM_BANK  = 15
+EF_ROM_BANK  = 0
 
 ; efs banks
 EFS_FILES_DIR_BANK     = 0
@@ -34,7 +34,6 @@ EFS_FILES_BANKSTRATEGY = $D0
 
 ; eapi data and functions
 EAPI_SOURCE  = $b800  ; $a000 (hirom) + 1800
-EAPI_DESTINATION = $7500
 
 EASYFLASH_BANK    = $de00
 EASYFLASH_CONTROL = $de02
@@ -42,7 +41,7 @@ EASYFLASH_LED     = $80
 EASYFLASH_16K     = $07
 EASYFLASH_KILL    = $04
 
-EAPIInit          = EAPI_DESTINATION + $14
+;EAPIInit          = address + $14
 EAPIWriteFlash    = $df80
 EAPIEraseSector   = $df83
 EAPISetBank       = $df86

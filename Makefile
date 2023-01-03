@@ -29,8 +29,9 @@ CC65FLAGS=-t $(TARGET) -O
 .SUFFIXES: .prg .s .c
 .PHONY: clean all easyflash mrproper
 
-
-EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/loader.o build/ef/loadeapi.o build/ef/io-wrapper.o
+EF_LOADER_FILES=build/ef/loader.o build/ef/loadeapi.o build/ef/io-wrapper.o
+EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/startup.o build/ef/loadeapi.o build/ef/io-wrapper.o
+EF_IOROM_FILES=build/ef/io-wrapper.o
 #EF_MENU_FILES=build/ef/loadeapi.o build/ef/io-loader.o build/ef/game-loader.o build/ef/io-sector.o build/ef/io-loadfile.o build/ef/io-caller.o 
 #STARTMENU_FILES=build/ef/menu.o build/ef/util.o build/ef/util_s.o build/ef/savegame.o build/ef/savegame_map.o build/ef/io-1541.o build/ef/io-sectortable-da.o
 #EDITOR_FILES=build/ef/util.o build/ef/util_s.o build/ef/editor_main.o build/ef/editor_character.o build/ef/editor_util.o build/ef/editor_items.o build/ef/editor_spells.o build/ef/io-1541.o build/ef/editor_list.o build/ef/io-sectortable-da.o
@@ -41,6 +42,7 @@ all: easyflash
 
 # easyflash
 easyflash: build/codc-easyflash.crt
+
 
 # assemble
 build/%.o: src/%.s
@@ -70,7 +72,7 @@ mrproper:
 # easyflash
 
 # cartridge binary
-build/ef/codc-easyflash.bin: build/ef/init.prg src/ef/eapi-am29f040.prg build/ef/menu.prg build/ef/directory.data.prg build/ef/files.data.prg build/ef/io-rom.prg
+build/ef/codc-easyflash.bin: build/ef/init.bin src/ef/eapi-am29f040.prg build/ef/loader.bin build/ef/directory.data.prg build/ef/files.data.prg build/ef/io-rom.bin
 	cp ./src/ef/crt.map ./build/ef/crt.map
 	cp ./src/ef/eapi-am29f040.prg ./build/ef/eapi-am29f040.prg
 	cp ./src/ef/ef-name.bin ./build/ef/ef-name.bin
@@ -93,13 +95,25 @@ build/ef/files.list: disks/castle.d64
 	find ./build/files/music* -printf "%p prg\n" >> ./build/ef/files.list
 
 	
-# easyflash init.prg
-build/ef/init.prg: build/ef/init.o
+# easyflash init.bin
+build/ef/init.bin: build/ef/init.o
 	$(LD65) $(LD65FLAGS) -o $@ -C src/ef/init.cfg $^
+
+# easyflash loader.bin
+build/ef/loader.bin: $(EF_LOADER_FILES)
+	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/loader.map -Ln ./build/ef/loader.lst -o $@ -C src/ef/loader.cfg c64.lib $(EF_LOADER_FILES)
 
 # menu.prg
 build/ef/menu.prg: $(EF_MENU_FILES)
 	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/menu.map -Ln ./build/ef/menu.lst -o $@ -C src/ef/menu.cfg c64.lib $(EF_MENU_FILES)
+	echo "./build/ef/menu.prg prg" >> ./build/ef/files.list
+
+
+# disassemble of object
+build/ef/object-da.s: build/ef/files.list src/ef/object-da.info src/ef/object-exp.inc src/ef/object-patch.sh
+	$(DA65) -i ./src/ef/object-da.info -o build/ef/temp1.s
+	src/ef/object-patch.sh src/ef/object-exp.inc build/ef/temp1.s > build/ef/object-da.s
+	rm -f build/ef/temp1.s
 
 # object.prg
 build/ef/object.prg:
@@ -112,13 +126,13 @@ build/ef/sound.prg:
 	echo "./build/ef/sound.prg prg" >> ./build/ef/files.list
 
 # io-rom.prg
-build/ef/io-rom.prg:
-	echo -en "\00\00" > ./build/ef/io-rom.prg
+build/ef/io-rom.bin: $(EF_IOROM_FILES)
+	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/io-rom.map -Ln ./build/ef/io-rom.lst -o $@ -C src/ef/io-rom.cfg c64.lib $(EF_IOROM_FILES)
 
 
 # build efs
-build/ef/directory.data.prg build/ef/files.data.prg: build/ef/files.list build/ef/object.prg build/ef/sound.prg
-	tools/mkefs.py -v -s 229376 -l ./build/ef/files.list -f . -d ./build/ef
+build/ef/directory.data.prg build/ef/files.data.prg: build/ef/files.list build/ef/object.prg build/ef/sound.prg build/ef/menu.prg
+	tools/mkefs.py -v -u -s 229376 -l ./build/ef/files.list -f . -d ./build/ef
 
 # sector-rom.prg
 #build/ef/sector-rom.bin: build/ef/io-sector.o

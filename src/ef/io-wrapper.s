@@ -14,6 +14,9 @@
 ; limitations under the License.
 ; ----------------------------------------------------------------------------
 
+.feature c_comments
+
+
 .include "easyflash.i"
 
 
@@ -37,21 +40,39 @@
         jmp wrapper_save_body
 
 
-    backup_zeropage:
-        ldx #$07
+    prepare_io:
+        ldx #$07  ; backup zp
     :   lda $f8, x
         sta zeropage_backup, x
         dex
         bpl :-
+
+        lda $01  ; save memory config
+        sta store_memory
+
+        lda #$37  ; bank to rom area
+        sta $01
+        lda #EASYFLASH_LED | EASYFLASH_16K
+        sta EASYFLASH_CONTROL
+        lda #EF_ROM_BANK
+        sta EASYFLASH_BANK
+
         rts
 
 
-    restore_zeropage:
+    restore_io:
         ldx #$07
     :   lda zeropage_backup, x
         sta $f8, x
         dex
         bpl :-
+
+        lda store_memory  ; restore memory config
+        sta $01
+
+        lda #EASYFLASH_KILL  ; bank out
+        sta EASYFLASH_CONTROL
+
         rts
 
 
@@ -66,13 +87,21 @@
 
     wrapper_load_body:
         ; A: 0=load to address, 1=load to X/Y; X/Y: address
+        ; return X/Y: address
         sta load_mode
         stx load_address
         sty load_address + 1
-        jsr backup_zeropage
+        jsr prepare_io
 
-        jsr restore_zeropage
-        clc ; no error
+        jsr rom_wrapper_load
+        php  ; save carry
+
+        jsr restore_io
+
+        ldx load_address
+        ldy load_address + 1
+
+        plp
         rts
 
 
@@ -85,21 +114,207 @@
         sta save_start_address
         lda $01, x
         sta save_start_address + 1
-        jsr backup_zeropage
+        jsr prepare_io
 
-        jsr restore_zeropage
-        clc ; no error
+        jsr rom_wrapper_save
+        php  ; save carry
+
+        jsr restore_io
+
+        plp
         rts
+
+
+    set_start_bank:
+        ; safest way to set eapi shadow bank
+        ; A: bank
+        jsr EAPISetBank
+        lda #EF_ROM_BANK
+        sta EASYFLASH_BANK
+        rts
+
+    get_byte:
+        ; load byte in A
+        jsr EAPIReadFlashInc
+        pha
+        lda #EASYFLASH_LED | EASYFLASH_16K
+        sta EASYFLASH_CONTROL
+        lda #EF_ROM_BANK
+        sta EASYFLASH_BANK
+        pla
+        rts
+
+
+    directory_copy_next_entry:
+        ; easyflash is banked in but on another bank
+        ; EAPIReadFlashInc has been prepared (EAPISetPtr, EAPISetLen)
+        ; carry set if no new entry
+        ldy #$00
+
+    :   jsr EAPIReadFlashInc
+        bcs :+
+        sta directory_entry, y
+        iny
+        cpy #$18
+        bne :-
+        clc
+
+    :   lda #EF_ROM_BANK
+        sta EASYFLASH_BANK
+        rts
+
 
 
 .segment "IO_ROM"
 
-    rom_load_file_entry:
-        ; name must have been prepared
+    rom_wrapper_load:
+        jsr rom_directory_find
+        bcc :+
+        rts  ; not found
 
-    
+    :   jsr rom_fileload_begin
+
+        jsr get_byte  ; load address
+        sta $f8
+        jsr get_byte
+        sta $f9
+        lda load_mode  ; 0=load to address, 1=load to X/Y
+        bne :+
+        lda load_address  ; load to given address
+        sta $f8
+        lda load_address + 1
+        sta $f9
+
+    :   lda $f8
+        sta load_address
+        lda $f9
+        sta load_address + 1
+        ldy #$00
+      loop:
+        jsr get_byte
+        sta ($f8), y
+        bcs :+
+
+        inc $f8
+        bne loop
+        inc $f9
+        jmp loop
+
+    :   clc
+        rts
+        
+
+    rom_wrapper_save:
+        rts
+
+
+    rom_fileload_begin:
+        ; directory entry in fe/ff
+        ldx directory_entry + efs_directory::offset_low
+        lda directory_entry + efs_directory::offset_high
+        clc
+        adc #$80
+        tay
+        lda #$d0  ; eapi bank mode
+        jsr EAPISetPtr
+
+        ldx directory_entry + efs_directory::size_low
+        ldy directory_entry + efs_directory::size_high
+        lda directory_entry + efs_directory::size_upper
+        jsr EAPISetLen
+
+        lda directory_entry + efs_directory::bank
+        jsr set_start_bank
+
+        rts
+
+
+    rom_directory_begin_search:
+        ; set pointer and length of directory
+        lda #$d0
+        ldx #<EFS_FILES_DIR_START
+        ldy #>EFS_FILES_DIR_START
+        jsr EAPISetPtr
+        ldx #$00
+        ldy #$18
+        lda #$00
+        jsr EAPISetLen
+        lda #EFS_FILES_DIR_BANK
+        jsr set_start_bank
+        rts
+
+
+    rom_directory_is_terminator:
+        ; returns C set if current entry is empty (terminator)
+        ; returns C clear if there are more entries
+        ; uses A, Y, status
+        ; must not use X
+        ldy #efs_directory::flags
+        lda directory_entry, y
+        and #$1f
+        cmp #$1f
+        beq :+
+        clc  ; in use or deleted
+        rts
+    :   sec  ; empty
+        rts
+
+
+    rom_directory_find:
+        lda filename_address
+        sta $fe
+        lda filename_address + 1
+        sta $ff
+        jsr rom_directory_begin_search
+
+      nextname:
+        ; next directory
+        jsr directory_copy_next_entry
+
+        ; test if more entries
+        jsr rom_directory_is_terminator
+        bcc morefiles  ; if not terminator entry (C clear) inspect entry
+        sec
+        rts
+
+      morefiles:
+        ; check if deleted
+        ; check if hidden or other wrong type ###
+        ; we only allow prg ($01, $02, $03) ###
+        ldy #efs_directory::flags
+        lda directory_entry, y
+        beq nextname    ; if deleted go directly to next name
+
+        ; compare filename
+        ldy #$00
+      nameloop:
+        lda #$2a   ; '*'
+        cmp ($fe), y  ; character in name is '*', we have a match
+        beq namematch
+        lda ($fe), y  ; compare character with character in entry
+        cmp directory_entry, y     ; if not equal nextname
+        bne nextname
+        iny
+        cpy filename_length        ; name length check
+        bne nameloop               ; more characters
+        cpy #$16                   ; full name length reached
+        beq namematch              ;   -> match
+        lda directory_entry, y     ; character after length is zero
+        beq namematch              ;   -> match
+        jmp nextname               ; length check failed
+
+      namematch:
+        clc
+        rts
+
+
 
 .segment "IO_DATA"
+
+    directory_entry:
+        .byte $00, $00, $00, $00, $00, $00, $00, $00
+        .byte $00, $00, $00, $00, $00, $00, $00, $00
+        .byte $00, $00, $00, $00, $00, $00, $00, $00
 
     zeropage_backup:
         .byte $00, $00, $00, $00, $00, $00, $00, $00
@@ -122,5 +337,8 @@
     save_end_address:
         .word $0000
 
-    work_bank:
+    start_bank:
+        .byte $00
+
+    store_memory:
         .byte $00

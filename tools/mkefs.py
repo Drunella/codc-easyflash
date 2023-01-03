@@ -168,10 +168,12 @@ def main(argv):
     p.add_argument("-f", dest="files", action="store", required=True, help="files directory.")
     p.add_argument("-d", dest="destination", action="store", required=True, help="destination directory.")
     p.add_argument("-s", dest="maxsize", action="store", required=False, help="maximum data size.", default="1032192")
+    p.add_argument("-u", dest="uppercase", action="store_true", required=False, help="uppercase name.", default=False)
     args = p.parse_args()
 
     verbose = args.verbose
     maxsize = int(args.maxsize, 0)
+    uppercase = args.uppercase
     files_list = args.list
     files_path = args.files
     os.makedirs(files_path, exist_ok=True)
@@ -187,20 +189,23 @@ def main(argv):
         value = entries[key]
         #pprint.pprint(value)
         name = dict()
+        n = os.path.splitext(os.path.basename(value["name"]))
         if (value["type"] == "prg"):
             # prg with startaddress
-            name["name"] = os.path.basename(value["name"])
+            name["name"] = n[0]
             name["type"] = 0x60|0x01  # normal prg file with start address
             
         elif (value["type"] == "bin"):
             # bin without startaddress
-            name["name"] = os.path.basename(value["name"])
+            name["name"] = n[0]
             name["type"] = 0x60|0x09  # normal file without startaddress
             
         else:
             raise Exception("unknown type " + value["type"] + " of file " + value["name"])
 
-        #pprint.pprint(name)
+        if (uppercase):
+            name["name"] = name["name"].upper()
+        #pprint.pprint(name)        
         content = load_file(os.path.join(files_path, value["name"]))
         entry = efs_makefileentry(content, maxsize)
         efs_makedirentry(name, entry)

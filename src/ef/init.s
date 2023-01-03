@@ -18,15 +18,19 @@
 .import __BOOTSTRAP_RUN__
 .import __BOOTSTRAP_SIZE__
 
+.import __LOADER_LOAD__
+.import __LOADER_RUN__
+.import __LOADER_SIZE__
+
 EASYFLASH_BANK    = $DE00
 EASYFLASH_CONTROL = $DE02
 EASYFLASH_LED     = $80
 EASYFLASH_16K     = $07
 EASYFLASH_KILL    = $04
 
-LOADER_SOURCE = $8000
-LOADER_DEST = $2000
-LOADER_RUN = $2000
+LOADER_SOURCE = $bc00
+LOADER_DEST = $c000
+LOADER_START = $c000
 
 
 .segment "ULTIMAX_VECTORS"
@@ -111,7 +115,17 @@ LOADER_RUN = $2000
         and #$e0    ; only leave "Run/Stop", "Q" and "C="
         cmp #$e0
         bne kill    ; branch if one of these keys is pressed
-        
+ 
+        ; clear screen
+;        lda #$20
+;        ldx #$00
+;    :   sta $0400, x
+;        sta $0500, x
+;        sta $0600, x
+;        sta $0700, x
+;        dex
+;        bne :-
+
         ; c64 reset
         jsr $fda3  ; initialize i/o
         jsr $fd50  ; initialize memory
@@ -125,13 +139,13 @@ LOADER_RUN = $2000
         sta $d021
         sta $9d         ; no error messages
 
-        ; copy application code, resides on 00:0:0000 and start
-        ldy #$20
+        ; copy application code, resides on 00:1:bc00 and start
+        ldy #$03
     pagecopy:
         ldx #$00
     bytecopy:
-        lda LOADER_SOURCE + $0000, x
-        sta LOADER_DEST   + $0000, x
+        lda LOADER_SOURCE, x
+        sta LOADER_DEST, x
         dex
         bne bytecopy
         inc bytecopy + 2  ; high byte of lda
@@ -140,7 +154,8 @@ LOADER_RUN = $2000
         bne pagecopy
 
         ; start
-        jmp LOADER_RUN
+        jmp LOADER_START
+
 
     kill:
         lda #EASYFLASH_KILL
