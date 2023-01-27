@@ -18,39 +18,20 @@
 .feature c_comments 
 
 
-;.include "easyflash.i"
+.include "easyflash.i"
 
 
-.import __LOADER_LOAD__
-.import __LOADER_RUN__
-.import __LOADER_SIZE__
-
-;.import __IO_WRAPPER_LOAD__
-;.import __IO_WRAPPER_RUN__
-;.import __IO_WRAPPER_SIZE__
-
-.import __EAPI_START__
-
-
-.import _load_eapi
-.import _wrapper_setnam
-.import _wrapper_load
-.import _wrapper_save
-
-
-;.export _init_loader
-;.export _init_loader_blank
+;.import __LOADER_LOAD__
+;.import __LOADER_RUN__
+;.import __LOADER_SIZE__
+;.import __EAPI_START__
+;.import _load_eapi
 
 
 .segment "LOADER_CALL"
 
     _init_loader:
-        ; void __fastcall__ init_loader(void);
         jmp init_loader_body
-
-/*    _init_loader_blank:
-        ; void __fastcall__ init_loader_blank(void);
-        jmp init_loader_blank_body*/
 
 
 
@@ -75,96 +56,38 @@
         cpx #loader_text_len
         bne :-
 
-        ; load eapi
-        lda #>__EAPI_START__
-        jsr _load_eapi
+        lda #$37
+        sta $01
+        lda #$80 | $07  ; led, 16k mode
+        sta $de02
+        lda #$00        ; EFSLIB_ROM_BANK
+        sta $de00
+        jsr EFS_init
 
+        jsr EFS_init_minieapi
+
+        lda #$36
+        sta $01
+        lda #$04   ; easyflash off
+        sta $de02
+        
         ; load menu
+        ldy #$01  ; secondary address: load to destination
+        jsr EFS_setlfs
         lda #menu_name_length
         ldx #<menu_name
         ldy #>menu_name
-        jsr _wrapper_setnam
-        lda #$01
-        jsr _wrapper_load
-        stx startup + 1
-        sty startup + 2
+        jsr EFS_setnam
+        ldx #$00
+        ldy #$20
+        lda #$00
+        jsr EFS_load
+;        stx startup + 1
+;        sty startup + 2
         
     startup:
         jmp $2000
 
-
-/*    init_loader_blank_body:
-        ; load segment LOADER
-        lda #<__LOADER_LOAD__
-        sta source_address_low
-        lda #>__LOADER_LOAD__
-        sta source_address_high
-        lda #<__LOADER_RUN__
-        sta destination_address_low
-        lda #>__LOADER_RUN__
-        sta destination_address_high
-        lda #<__LOADER_SIZE__
-        sta bytes_to_copy_low
-        lda #>__LOADER_SIZE__
-        sta bytes_to_copy_high
-        jsr copy_segment
-
-        ; load eapi
-        lda #>__EAPI_START__
-        jsr _load_eapi
-
-        ; load wrapper (IO_WRAPPER)
-        lda #<__IO_WRAPPER_LOAD__
-        sta source_address_low
-        lda #>__IO_WRAPPER_LOAD__
-        sta source_address_high
-        lda #<__IO_WRAPPER_RUN__
-        sta destination_address_low
-        lda #>__IO_WRAPPER_RUN__
-        sta destination_address_high
-        lda #<__IO_WRAPPER_SIZE__
-        sta bytes_to_copy_low
-        lda #>__IO_WRAPPER_SIZE__
-        sta bytes_to_copy_high
-        jsr copy_segment
-
-        rts
-*/
-/*
-    copy_segment:
-        lda bytes_to_copy_low
-        beq copy_segment_loop
-        inc bytes_to_copy_high
-    copy_segment_loop:
-    source_address_low = source_address + 1
-    source_address_high = source_address + 2
-    source_address:
-        lda $ffff
-    destination_address_low = destination_address + 1
-    destination_address_high = destination_address + 2
-    destination_address:
-        sta $ffff
-        ; increase source
-        inc source_address_low
-        bne :+
-        inc source_address_high
-    :   ; increase destination
-        inc destination_address_low
-        bne :+
-        inc destination_address_high
-    :   ; decrease size
-        dec bytes_to_copy_low
-        bne copy_segment_loop
-        dec bytes_to_copy_high
-        bne copy_segment_loop
-        rts
-
-
-    bytes_to_copy_low:
-         .byte $ff
-    bytes_to_copy_high:
-         .byte $ff
-*/
 
     loader_text:
         .byte $0c, $0f, $01, $04, $09, $0e, $07, $2e, $2e, $2e  ; "loading..."

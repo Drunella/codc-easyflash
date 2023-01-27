@@ -32,9 +32,10 @@ void menu_clear(uint8_t start, uint8_t stop);
 void menu_option(char key, char *desc);
 
 void __fastcall__ init_loader(void);
-void __fastcall__ startup_game(void);
+void __fastcall__ startup_game_original(void);
+void __fastcall__ startup_game_remastered(void);
 
-void __fastcall__ load_eapi(uint8_t highaddress);
+//void __fastcall__ load_eapi(uint8_t highaddress);
  
 
 #endif

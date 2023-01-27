@@ -26,12 +26,16 @@ import traceback
 import pprint
 
 
-def efs_initialize():
+def efs_initialize(startbank, offset, mode):
     global data_directory, data_files, data_files_pointer, data_directory_pointer
+    global data_files_pointer_offset, data_files_startbank, data_files_bankingmode
     global entries_directory, entries_files
     data_directory = bytearray([0xff] * 0x1800)
-    data_files = bytearray([0xff] * 1032192) # all 63 other banks, truncate later
+    data_files = bytearray([0xff] * (1024*1024)) # all 64 other banks, truncate later
     data_files_pointer = 0
+    data_files_pointer_offset = offset
+    data_files_startbank = startbank
+    data_files_bankingmode = mode
     data_directory_pointer = 0
     entries_directory = dict()
     entries_files = dict()
@@ -39,6 +43,7 @@ def efs_initialize():
 
 def efs_makefileentry(data, maxsize):
     global data_directory, data_files, data_files_pointer, data_directory_pointer
+    global data_files_pointer_offset, data_files_startbank, data_files_bankingmode
     global entries_directory, entries_files
     hash = hashlib.sha256(data);
     if hash in entries_files:
@@ -52,15 +57,27 @@ def efs_makefileentry(data, maxsize):
     data_files_pointer += size
     data_files[offset:offset+size] = data
     entry = dict()
-    entry["bank"] = int(offset // 0x4000 + 1) # size of one bank
-    entry["startoffset"] = int(offset % 0x4000)
+    if (data_files_bankingmode == 'lh'):
+        divisor = 0x4000
+        startaddr = 0x0000
+    elif (data_files_bankingmode == 'll'):
+        divisor = 0x2000
+        startaddr = 0x0000
+    elif (data_files_bankingmode == 'hh'):
+        divisor = 0x2000
+        startaddr = 0x2000
+    else:
+        raise Exception("illegal banking mode " + data_files_bankingmode)
+    entry["bank"] = int(offset // divisor + data_files_startbank) # size of one bank
+    entry["startoffset"] = startaddr + (offset + data_files_pointer_offset) % divisor
     entry["filesize"] = size
     entries_files[hash] = entry
     return entry
 
 
 def efs_makedirentry(dir, file):
-    global data_directory, data_files, data_files_pointer, data_directory_pointer
+    global data_directory, data_files, data_files_pointer, data_directory_pointer, data_files_pointer_offset
+    global data_files_pointer_offset, data_files_startbank, data_files_bankingmode
     global entries_directory, entries_files
     if dir["name"] in entries_directory:
         raise Exception("directory entry " + dir + " has already bin added")
@@ -105,7 +122,7 @@ def efs_writeextended(data, position, value):
 
 def efs_writepaddedstring(data, position, value):
     text = value.encode('utf-8')
-    if len(text) > 15:
+    if len(text) > 16:
         raise Exception("filename too long (" + value + ")")
     data[position:position+16] = bytes([0] * 16)
     data[position:position+len(text)] = text
@@ -119,24 +136,30 @@ def efs_write(dirname, dataname):
         f.write(b'\xa0')
         f.write(data_directory) # always write full directory
     if verbose:
-        print("directory written")
+        print("directory written as " + dirname)
     with open(dataname, "wb") as f:
         f.write(b'\x00')  # write address of bank b:0:0000 = 0x8000
         f.write(b'\x80')
         f.write(data_files[0:data_files_pointer])
     if verbose:
-        print("data written with " + str(data_files_pointer)  + " bytes")
+        print("data written with " + str(data_files_pointer)  + " bytes as " + dataname)
     
 
 def load_files_directory(filename):
     directory = dict()
     with open(filename) as f:
-        result = [line.split() for line in f]
+        result = [line.split(',') for line in f]
         for l in result:
             #pprint.pprint(l)
             directory[l[0]] = dict();
-            directory[l[0]]["name"] = l[0]
-            directory[l[0]]["type"] = l[1]
+            directory[l[0]]["sourcename"] = l[0].strip()
+            directory[l[0]]["destname"] = l[1].strip()
+            directory[l[0]]["type"] = l[2].strip()
+            if len(l) >= 4:
+                directory[l[0]]["hidden"] = l[3].strip()
+            else:
+                directory[l[0]]["hidden"] = "0"
+            #pprint.pprint(directory)
     return directory
 
 
@@ -168,12 +191,20 @@ def main(argv):
     p.add_argument("-f", dest="files", action="store", required=True, help="files directory.")
     p.add_argument("-d", dest="destination", action="store", required=True, help="destination directory.")
     p.add_argument("-s", dest="maxsize", action="store", required=False, help="maximum data size.", default="1032192")
-    p.add_argument("-u", dest="uppercase", action="store_true", required=False, help="uppercase name.", default=False)
+    #p.add_argument("-u", dest="uppercase", action="store_true", required=False, help="uppercase name.", default=False)
+    p.add_argument("-o", dest="offset", action="store", required=False, help="file start offset.", default='0')
+    p.add_argument("-m", dest="mode", action="store", required=False, help="bank switching mode.", default="lh")
+    p.add_argument("-b", dest="bank", action="store", required=False, help="start bank for files", default='1')
+    p.add_argument("-n", dest="nameprefix", action="store", required=False, help="name prefix", default='efs')
     args = p.parse_args()
 
     verbose = args.verbose
     maxsize = int(args.maxsize, 0)
-    uppercase = args.uppercase
+    #uppercase = args.uppercase
+    offset = int(args.offset, 0)
+    mode = args.mode
+    startbank = int(args.bank, 0)
+    nameprefix = args.nameprefix
     files_list = args.list
     files_path = args.files
     os.makedirs(files_path, exist_ok=True)
@@ -182,39 +213,49 @@ def main(argv):
 
     entries = load_files_directory(files_list)
     #pprint.pprint(entries)
-    efs_initialize()
+    efs_initialize(startbank, offset, mode)
     
     # add prg files
     for key in entries:
         value = entries[key]
         #pprint.pprint(value)
         name = dict()
-        n = os.path.splitext(os.path.basename(value["name"]))
-        if (value["type"] == "prg"):
-            # prg with startaddress
-            name["name"] = n[0]
-            name["type"] = 0x60|0x01  # normal prg file with start address
-            
-        elif (value["type"] == "bin"):
-            # bin without startaddress
-            name["name"] = n[0]
-            name["type"] = 0x60|0x09  # normal file without startaddress
-            
-        else:
-            raise Exception("unknown type " + value["type"] + " of file " + value["name"])
+#        n = os.path.splitext(os.path.basename(value["name"]))
+        
+        hidden = int(value["hidden"], 0)
+        if hidden != 0:
+            hidden = 0x80
+        type = int(value["type"], 0)
+        if type > 0x1e:
+            raise Exception("invalid type " + value["type"] + " of file " + value["sourcename"])
 
-        if (uppercase):
-            name["name"] = name["name"].upper()
-        #pprint.pprint(name)        
-        content = load_file(os.path.join(files_path, value["name"]))
+        name["type"] = 0x60 | hidden | type
+        name["name"] = value["destname"]
+
+#        if (value["type"] == "1"):
+#            # prg with startaddress
+#            name["name"] = n[0]
+#            name["type"] = 0x60|0x01  # normal prg file with start address            
+#        elif (value["type"] == "3"):
+#            # bin without startaddress
+#            name["name"] = n[0]
+#            name["type"] = 0x60|0x01  # normal prg file with start address           
+#        else:
+#            raise Exception("unknown type " + value["type"] + " of file " + value["name"])
+
+#        if (uppercase):
+#            name["name"] = name["name"].upper()
+        #pprint.pprint(value)
+        content = load_file(os.path.join(files_path, value["sourcename"]))
         entry = efs_makefileentry(content, maxsize)
         efs_makedirentry(name, entry)
+        #pprint.pprint(entry)
         if verbose:
-            print("added file " + value["name"] + " (" + value["type"] + ") of " +(str(len(content)))+ " bytes")
+            print("added file " + value["sourcename"] + " as " + name["name"]  +" (" + str(name["type"]) + ") of " +(str(len(content)))+ " bytes")
 
     efs_terminatedir()
-    dirs_path = os.path.join(destination_path, "directory.data.prg")
-    data_path = os.path.join(destination_path, "files.data.prg")
+    dirs_path = os.path.join(destination_path, nameprefix + ".dir.prg")
+    data_path = os.path.join(destination_path, nameprefix + ".files.prg")
     efs_write(dirs_path, data_path)
     
     return 0

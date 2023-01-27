@@ -21,7 +21,7 @@
 #include "util.h"
 
 
-#define MENU_START_Y 12
+#define MENU_START_Y 15
 
 
 
@@ -31,10 +31,13 @@ static void draw_startmenu(void) {
     //     01234567890123456789001234567890123456789
     cputs("       The Castles of Doctor Creep\r\n"
           "\r\n"
-          "               Designed by\r\n"
-          "                 Ed Hobb\r\n"
+          "              Designed by\r\n"
+          "                Ed Hobb\r\n"
           "\r\n"
           " Copyright (c) 1984 Broderbund Software\r\n"
+          "\r\n"
+          "       broken by blade runner 7/84\n\r"
+          "          remastered by DrHonz\n\r"
           "\r\n\r\n"
           "     EasyFlash version by Drunella\r\n"
           "\r\n");
@@ -67,7 +70,9 @@ void main(void)
         
         if (repaint) {
             menu_clear(MENU_START_Y, 24);
-            menu_option('G', "Start game");
+            menu_option('G', "Start original");
+            cputs("\r\n");
+            menu_option('R', "Start remastered");
             cputs("\r\n");
             menu_option('M', "Savegame management");
             cputs("\r\n");
@@ -78,11 +83,16 @@ void main(void)
         repaint = false;
         
         switch (cgetc()) {
-        case ' ':
         case 'g':
             menu_clear(MENU_START_Y,24);
             init_loader();
-            startup_game(); // does not return
+            startup_game_original(); // does not return
+            break;
+
+        case 'r':
+            menu_clear(MENU_START_Y,24);
+            init_loader();
+            startup_game_remastered(); // does not return
             break;
 
         case 'm':

@@ -1,0 +1,54 @@
+object changes
+
+fix copy protection:
+$0803  4C 0C 73 => 4c 0c 4a
+$0806  4C 6A 24 => 4c 6a 16
+$0809  4C 47 20 => 4c 47 17
+$080f  4C 2A 75 => 4c 2a 42
+
+$091B  20 10 2C => ea ea ea
+
+load_file:
+$28F7  20 BA FF => (setlfs)
+$2901  20 BD FF => (setnam)
+$290E  20 D5 FF => (load)
+
+$0C6F  20 B7 FF => (readst)
+$2410  20 B7 FF => (readst)
+$242A  20 B7 FF => (readst)
+$24E4  20 B7 FF => (readst)
+
+save_file:
+$2899  20 BA FF => (setlfs)
+$28A6  20 BD FF => (setnam)
+$28C8  20 D8 FF => (save)
+
+$2533  20 B7 FF => (readst)
+
+check_disk:
+$0C68  C9 00 => lda #$00
+$1CE9  C9 00 => lda #$00
+$2409  C9 00 => lda #$00
+$24D7  C9 01 => lda #$00
+$252C  C9 01 => lda #$00
+
+$1E8F  rts, other code
+to
+$1F28
+
+
+
+
+$1E8F to $1F18 : check disk, obsolete (137 bytes, space for wrapper)
+      to $1F26 : check disk data, obsolete
+$1f27: disk type value: 
+0=game disk
+1=non game disk
+2=no disk inserted
+$1f28: 'I' for initialize disk: obsolete
+
+$2920 to $2972 : io prepare, rewrite
+
+$2C10 to $2CB0 : copy protection, obsolete
+      to $2CD7 : further copy protection, obsolete
+

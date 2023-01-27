@@ -15,11 +15,6 @@
 ; ----------------------------------------------------------------------------
 
 
-; io functions
-EF_SETNAM = $0200
-EF_LOAD = $0203
-EF_SAVE = $0206
-
 ; io rom
 EF_ROM_START = $8000
 EF_ROM_BANK  = 0
@@ -52,6 +47,17 @@ EAPIReadFlashInc  = $df92
 EAPIWriteFlashInc = $df95
 EAPISetSlot       = $df98
 EAPIGetSlot       = $df9b
+
+; EFS lib
+EFS_init    = $8000
+EFS_readst  = $DF30
+EFS_setlfs  = $DF00
+EFS_setnam  = $DF06
+EFS_load    = $DF0C
+EFS_save    = $DF24
+EFS_init_minieapi = $8006
+EFS_init_eapi = $8003
+
 
 ; efs struct
 .struct efs_directory

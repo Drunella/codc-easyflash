@@ -29,13 +29,8 @@ CC65FLAGS=-t $(TARGET) -O
 .SUFFIXES: .prg .s .c
 .PHONY: clean all easyflash mrproper
 
-EF_LOADER_FILES=build/ef/loader.o build/ef/loadeapi.o build/ef/io-wrapper.o
-EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/startup.o build/ef/loadeapi.o build/ef/io-wrapper.o
-EF_IOROM_FILES=build/ef/io-wrapper.o
-#EF_MENU_FILES=build/ef/loadeapi.o build/ef/io-loader.o build/ef/game-loader.o build/ef/io-sector.o build/ef/io-loadfile.o build/ef/io-caller.o 
-#STARTMENU_FILES=build/ef/menu.o build/ef/util.o build/ef/util_s.o build/ef/savegame.o build/ef/savegame_map.o build/ef/io-1541.o build/ef/io-sectortable-da.o
-#EDITOR_FILES=build/ef/util.o build/ef/util_s.o build/ef/editor_main.o build/ef/editor_character.o build/ef/editor_util.o build/ef/editor_items.o build/ef/editor_spells.o build/ef/io-1541.o build/ef/editor_list.o build/ef/io-sectortable-da.o
-#IMPORT_UTIL64_FILES=build/ef/util64-da.o build/ef/io-sectortable-da.o build/ef/util64-additional.o build/ef/io-1541.o
+EF_LOADER_FILES=build/ef/loader.o
+EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/startup.o build/ef/loadeapi.o
 
 # all
 all: easyflash
@@ -72,10 +67,10 @@ mrproper:
 # easyflash
 
 # cartridge binary
-build/ef/codc-easyflash.bin: build/ef/init.bin src/ef/eapi-am29f040.prg build/ef/loader.bin build/ef/directory.data.prg build/ef/files.data.prg build/ef/io-rom.bin
+build/ef/codc-easyflash.bin: build/ef/init.bin src/ef/lib-efs.prg src/ef/eapi-am29f040.prg build/ef/loader.bin build/ef/config.bin build/ef/data.dir.prg build/ef/data.files.prg build/ef/io-original.prg
 	cp ./src/ef/crt.map ./build/ef/crt.map
 	cp ./src/ef/eapi-am29f040.prg ./build/ef/eapi-am29f040.prg
-	cp ./src/ef/ef-name.bin ./build/ef/ef-name.bin
+	cp ./src/ef/lib-efs.prg ./build/ef/lib-efs.prg
 	tools/mkbin.py -v -b ./build/ef -m ./build/ef/crt.map -o ./build/ef/codc-easyflash.bin
 
 # cartdridge crt
@@ -87,14 +82,8 @@ build/codc-easyflash.crt: build/ef/codc-easyflash.bin
 build/ef/files.list: disks/castle.d64
 	@mkdir -p ./build/files
 	@mkdir -p ./build/ef
-	cd ./build/files && SDL_VIDEODRIVER=dummy c1541 -attach ../../disks/castle.d64 -extract
-	mv ./build/files/.pic* ./build/files/titlepic
-	rm -f ./build/ef/files.list
-	find ./build/files/titlepic -printf "%p prg\n" >> ./build/ef/files.list
-	find ./build/files/z* -printf "%p prg\n" >> ./build/ef/files.list
-	find ./build/files/music* -printf "%p prg\n" >> ./build/ef/files.list
+	tools/extract.sh 1 disks/castle.d64 build/files build/ef/files.list build/ef/files-rw.list
 
-	
 # easyflash init.bin
 build/ef/init.bin: build/ef/init.o
 	$(LD65) $(LD65FLAGS) -o $@ -C src/ef/init.cfg $^
@@ -103,11 +92,23 @@ build/ef/init.bin: build/ef/init.o
 build/ef/loader.bin: $(EF_LOADER_FILES)
 	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/loader.map -Ln ./build/ef/loader.lst -o $@ -C src/ef/loader.cfg c64.lib $(EF_LOADER_FILES)
 
+# easyflash config.bin
+build/ef/config.bin: build/ef/config.o src/ef/config.cfg
+	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/config.map -Ln ./build/ef/config.lst -o $@ -C src/ef/config.cfg c64.lib build/ef/config.o
+
 # menu.prg
 build/ef/menu.prg: $(EF_MENU_FILES)
 	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/menu.map -Ln ./build/ef/menu.lst -o $@ -C src/ef/menu.cfg c64.lib $(EF_MENU_FILES)
-	echo "./build/ef/menu.prg prg" >> ./build/ef/files.list
+	echo "./build/ef/menu.prg, MENU, 1, 1" >> ./build/ef/files.list
 
+
+# ------------------------------------------------------------------------
+# original game
+
+# io wrapper
+build/ef/io-original.prg: build/ef/io-original.o
+	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/io-original.map -Ln ./build/ef/io-original.lst -o $@ -C src/ef/io-original.cfg c64.lib build/ef/io-original.o
+	#echo "./build/ef/io-original.prg, IO-ORIGINAL, 1, 0" >> ./build/ef/files.list
 
 # disassemble of object
 build/ef/object-da.s: build/ef/files.list src/ef/object-da.info src/ef/object-exp.inc src/ef/object-patch.sh
@@ -116,23 +117,32 @@ build/ef/object-da.s: build/ef/files.list src/ef/object-da.info src/ef/object-ex
 	rm -f build/ef/temp1.s
 
 # object.prg
-build/ef/object.prg:
-	echo -en "\00\00" > ./build/ef/object.prg
-	echo "./build/ef/object.prg prg" >> ./build/ef/files.list
-
-# sound.prg
-build/ef/sound.prg:
-	echo -en "\00\00" > ./build/ef/sound.prg
-	echo "./build/ef/sound.prg prg" >> ./build/ef/files.list
-
-# io-rom.prg
-build/ef/io-rom.bin: $(EF_IOROM_FILES)
-	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/io-rom.map -Ln ./build/ef/io-rom.lst -o $@ -C src/ef/io-rom.cfg c64.lib $(EF_IOROM_FILES)
-
+build/ef/object.prg: build/ef/io-original.prg
+	SDL_VIDEODRIVER=dummy c1541 -attach disks/castle.d64 -read object ./build/ef/object.prg
+	# patch ###
+	echo "./build/ef/object.prg, OBJECT, 1, 0" >> ./build/ef/files.list
 
 # build efs
-build/ef/directory.data.prg build/ef/files.data.prg: build/ef/files.list build/ef/object.prg build/ef/sound.prg build/ef/menu.prg
-	tools/mkefs.py -v -u -s 229376 -l ./build/ef/files.list -f . -d ./build/ef
+build/ef/data.dir.prg build/ef/data.files.prg: build/ef/files.list build/ef/object.prg build/ef/menu.prg
+	tools/mkefs.py -v -s 507904 -o 0 -m lh -b 1 -n data -l ./build/ef/files.list -f . -d ./build/ef
+
+
+# ------------------------------------------------------------------------
+# remastered game
+
+# get files list and files
+#build/ef/files.list: disks/castle.d64 disks/castle3.d64
+#	@mkdir -p ./build/files
+#	#@mkdir -p ./build/files3
+#	@mkdir -p ./build/ef
+#	tools/extract.sh 1 disks/castle.d64 build/files build/ef/files.list build/ef/files-rw.list
+#	#tools/extract.sh 3 disks/castle3.d64 build/files3 build/ef/files.list build/ef/files-rw.list
+#	#cp disks/object-ef.prg build/files3/3object-ef.prg
+#	#cp disks/3object.prg build/files3/3object.prg
+#	#cp disks/object.prg build/files/object.prg
+#	#echo "./build/files3/3object-ef.prg, 3OBJECTEF, 1, 0" >> ./build/ef/files.list
+#	#echo "./build/files3/3object.prg, 3OBJECT, 1, 0" >> ./build/ef/files.list
+#	#echo "./build/files/object.prg, OBJECT, 1, 0" >> ./build/ef/files.list
 
 # sector-rom.prg
 #build/ef/sector-rom.bin: build/ef/io-sector.o

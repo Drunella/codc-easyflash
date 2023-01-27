@@ -25,20 +25,14 @@
 .import __GAMESTART_RUN__
 .import __GAMESTART_SIZE__
 
-.import __IO_WRAPPER_LOAD__
-.import __IO_WRAPPER_RUN__
-.import __IO_WRAPPER_SIZE__
-
-.import __EAPI_START__
-
-.import _load_eapi
-.import _wrapper_setnam
-.import _wrapper_load
-.import _wrapper_save
+;.import __IO_WRAPPER_LOAD__
+;.import __IO_WRAPPER_RUN__
+;.import __IO_WRAPPER_SIZE__
 
 
 .export _init_loader
-.export _startup_game
+.export _startup_game_remastered
+.export _startup_game_original
 
 
 .segment "CODE"
@@ -58,25 +52,6 @@
         lda #<__GAMESTART_SIZE__
         sta bytes_to_copy_low
         lda #>__GAMESTART_SIZE__
-        sta bytes_to_copy_high
-        jsr copy_segment
-
-        ; load eapi
-        lda #>__EAPI_START__
-        jsr _load_eapi
-
-        ; load wrapper (IO_WRAPPER)
-        lda #<__IO_WRAPPER_LOAD__
-        sta source_address_low
-        lda #>__IO_WRAPPER_LOAD__
-        sta source_address_high
-        lda #<__IO_WRAPPER_RUN__
-        sta destination_address_low
-        lda #>__IO_WRAPPER_RUN__
-        sta destination_address_high
-        lda #<__IO_WRAPPER_SIZE__
-        sta bytes_to_copy_low
-        lda #>__IO_WRAPPER_SIZE__
         sta bytes_to_copy_high
         jsr copy_segment
 
@@ -120,28 +95,43 @@
 
 .segment "GAMESTART"
 
-    _startup_game:
+    _startup_game_original:
+      ; void __fastcall__ startup_game_original(void);
+      jmp body_startup_original
+
+
+    _startup_game_remastered:
+      ; void __fastcall__ startup_game_remastered(void);
+      jmp body_startup_remastered
+
+
+    body_startup_original:
         ; void __fastcall__ startup_game(void);
         lda #$7f   ; disable interrupts
         sta $dc0d
         sta $dd0d
         lda $dc0d
         sta $dd0d
+        cli
 
-        lda #$35   ; memory configuration
+        lda #$37   ; memory configuration
         sta $01
         lda #$2f
         sta $00
 
         ; load pic to $0800
+        ldy #$00
+        jsr EFS_setlfs
+
         lda #titlepicture_name_length
         ldx #<titlepicture_name
         ldy #>titlepicture_name
-        jsr _wrapper_setnam
+        jsr EFS_setnam
+
         lda #$00
         ldx #$00
         ldy #$08
-        jsr _wrapper_load
+        jsr EFS_load
 
         ; show pic
         lda #$40   
@@ -220,24 +210,32 @@
         sta $d021 
 
         ; load objects
+        ldy #$00
+        jsr EFS_setlfs
+
         lda #object_name_length
         ldx #<object_name
         ldy #>object_name
-        jsr _wrapper_setnam
+        jsr EFS_setnam
+
         lda #$00
         ldx #$00
         ldy #$08
-        jsr _wrapper_load
+        jsr EFS_load
 
-        ; load sound
-        lda #sounds_name_length
-        ldx #<sounds_name
-        ldy #>sounds_name
-        jsr _wrapper_setnam
+        ; load wrapper
+        ldy #$00
+        jsr EFS_setlfs
+
+        lda #wrapper_name_length
+        ldx #<wrapper_name
+        ldy #>wrapper_name
+        jsr EFS_setnam
+
         lda #$00
         ldx #$00
-        ldy #$b9
-        jsr _wrapper_load
+        ldy #$01
+        jsr EFS_load
 
         ; start game
         jmp $0800
@@ -253,7 +251,175 @@
     object_name_end:
     object_name_length = object_name_end - object_name
 
-    sounds_name:
-        .byte "sound"
-    sounds_name_end:
-    sounds_name_length = sounds_name_end - sounds_name
+    wrapper_name:
+        .byte "io-original"
+    wrapper_name_end:
+    wrapper_name_length = wrapper_name_end - wrapper_name
+
+
+
+
+
+    PtrFrom             = $14                           ; 
+    PtrFromLo           = $14                           ; 
+    PtrFromHi           = $15                           ; 
+    PtrTo               = $16                           ; 
+    PtrToLo             = $16                           ; 
+    PtrToHi             = $17                           ; 
+    PicStart            = $0800                         ; start address load picture
+    MainStart           = $0800                         ; start address game code
+    ScreenText          = $0400                         ; game info text
+    ScreenMC            = $cc00                         ; target title picture screen color info
+    ScreenBitMap        = $e000                         ; target title picture bitmap info
+    PicBitMap           = PicStart                      ; $0000 - $1f3f - koala picture bitmap
+    PicColorsMC         = PicStart      + $1f40         ; $1f40 - $2327 - koala picture color video ram
+    PicColorsRam        = PicColorsMC   + $03e8         ; $2328 - $270f - koala picture color ram 
+    PicColorsBkgr       = PicColorsRam  + $03e8    
+    COLORAM             = $d800
+
+    body_startup_remastered:
+        ldx #$00
+        lda #$20
+      @loop:   
+        sta $0400,x
+        sta $0500,x
+        sta $0600,x
+        sta $0700,x
+        dex
+        bne @loop
+
+        lda #$07
+        sta $d020
+        sta $d021
+        lda #$16                       
+        sta $d018                      
+                                       
+        ldy #$00
+        jsr EFS_setlfs
+                                       
+        lda #title3picture_name_length
+        ldx #<title3picture_name
+        ldy #>title3picture_name       
+        jsr EFS_setnam
+                                       
+        lda #$00
+        ldx #<PicStart                 
+        ldy #>PicStart                 
+        jsr EFS_load
+                                       
+        lda #<PicColorsMC              
+        sta PtrFromLo                  
+        lda #>PicColorsMC              
+        sta PtrFromHi                  
+                                       
+        lda #<ScreenMC                 
+        sta PtrToLo                    
+        lda #>ScreenMC                 
+        sta PtrToHi                    
+                                       
+        ldy #$00                       
+    CopyPicColorsMC:
+        lda (PtrFrom),y                
+        sta (PtrTo),y                  
+        iny                            
+        bne CopyPicColorsMC            
+                                       
+        inc PtrFromHi                  
+        inc PtrToHi                    
+        lda PtrToHi                    
+        cmp #<(>ScreenMC + $04)        
+        bne CopyPicColorsMC            
+                                       
+        lda #<PicBitMap                
+        sta PtrFromLo                  
+        lda #>PicBitMap                
+        sta PtrFromHi                  
+                                       
+        lda #<ScreenBitMap             
+        sta PtrToLo                    
+        lda #>ScreenBitMap             
+        sta PtrToHi                    
+                                       
+        ldy #$00                       
+    CopyPicBitMap:
+        lda (PtrFrom),y                
+        sta (PtrTo),y                  
+        iny                            
+        bne CopyPicBitMap              
+                                       
+        inc PtrFromHi                  
+        inc PtrToHi                    
+        lda PtrToHi                    
+        cmp #<(>ScreenBitMap + $20)    
+        bne CopyPicBitMap              
+                                       
+        lda #<PicColorsRam             
+        sta PtrFromLo                  
+        lda #>PicColorsRam             
+        sta PtrFromHi                  
+                                       
+        lda #<COLORAM                  
+        sta PtrToLo                    
+        lda #>COLORAM                  
+        sta PtrToHi                    
+                                       
+        ldy #$00                       
+    CopyPicColorsRam:
+        lda (PtrFrom),y                
+        sta (PtrTo),y                  
+        iny                            
+        bne CopyPicColorsRam           
+        inc PtrFromHi                  
+        inc PtrToHi                    
+        lda PtrToHi                    
+        cmp #$dc                       
+        bne CopyPicColorsRam           
+              
+    ShowPic:                         
+        lda $DD02
+        ora #$03                       
+        sta $DD02
+                                       
+        lda $DD00
+        and #$fc  ; #VIC_MemBankClr            
+        sta $DD00
+                                       
+        lda #$3b                       
+        sta $D011
+                                       
+        lda #$18                       
+        sta $D016
+                                       
+        lda #$38                       
+        sta $D018
+                                       
+        lda #$07
+        sta $D020
+        lda #$01
+        sta $D021
+                                       
+        ldy #$00                       
+        jsr EFS_setlfs
+                                       
+        lda #x3object_name_length
+        ldx #<x3object_name       
+        ldy #>x3object_name            
+        jsr EFS_setnam
+                                       
+        lda #$00                       
+        ldx #<MainStart                
+        ldy #>MainStart                
+        jsr EFS_load
+                                       
+        jmp MainStart
+
+
+    title3picture_name:
+        .byte "3titlepic"
+    title3picture_name_end:
+    title3picture_name_length = title3picture_name_end - title3picture_name
+
+    x3object_name:
+        .byte "3object"
+    x3object_name_end:
+    x3object_name_length = x3object_name_end - x3object_name

@@ -1,11 +1,14 @@
 # loader, init, eapi
-# bank type filename address length start
+# bank type filename address length start mode
 
-0 f io-rom.bin            0x8000 0 0
-0 f ef-name.bin           0xbb00 0 0
-0 f init.bin              0xbf00 0 0
-0 f eapi-am29f040.prg     0xb800 0 0
-0 f loader.bin            0xbc00 0 0
+0 f lib-efs.prg           0x8000 0 0      lh
+0 f config.bin            0xbb00 0 0      lh
+0 f init.bin              0xbf00 0 0      lh
+0 f eapi-am29f040.prg     0xb800 0 0      lh
+0 f loader.bin            0xbc00 0 0      lh
 
-0 f directory.data.prg    0xa000 0 0
-1 f files.data.prg        0x8000 0 0
+0 f data.dir.prg          0xa000 0 0      lh
+1 f data.files.prg        0x8000 0 0      lh
+
+#32 f data-rw.dir.prg      0x8000 0 0      lh
+#32 f data-rw.files.prg    0x9800 0 0      lh
