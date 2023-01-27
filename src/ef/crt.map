@@ -5,7 +5,7 @@
 0 f config.bin            0xbb00 0 0      lh
 0 f init.bin              0xbf00 0 0      lh
 0 f eapi-am29f040.prg     0xb800 0 0      lh
-0 f loader.bin            0xbc00 0 0      lh
+0 f loader.bin            0xbe00 0 0      lh
 
 0 f data.dir.prg          0xa000 0 0      lh
 1 f data.files.prg        0x8000 0 0      lh

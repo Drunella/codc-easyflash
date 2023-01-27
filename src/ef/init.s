@@ -28,7 +28,7 @@ EASYFLASH_LED     = $80
 EASYFLASH_16K     = $07
 EASYFLASH_KILL    = $04
 
-LOADER_SOURCE = $bc00
+LOADER_SOURCE = $be00
 LOADER_DEST = $c000
 LOADER_START = $c000
 
@@ -116,51 +116,25 @@ LOADER_START = $c000
         cmp #$e0
         bne kill    ; branch if one of these keys is pressed
  
-        ; clear screen
-;        lda #$20
-;        ldx #$00
-;    :   sta $0400, x
-;        sta $0500, x
-;        sta $0600, x
-;        sta $0700, x
-;        dex
-;        bne :-
-
-        ; c64 reset
-;        jsr $fda3  ; initialize i/o
-
         jsr $ff84   ; Initialise I/O
         jsr $ff87   ; Initialise System Constants
         jsr $ff8a   ; Restore Kernal Vectors
         jsr $ff81   ; Initialize screen editor
-;        jsr $e453   ; initialise vectors (this is important for codc)
-;        jsr $e3bf   ; initialize basic (this is important for codc)
-
-;        jsr $fd50  ; initialize memory
-;        jsr $fd15  ; set io vectors
-;        jsr $ff5b  ; more init ; necessary?
-
-        cli
 
         ; screen black again
         lda #$00        ; border and screen black, no error messages
         sta $d020
         sta $d021
         sta $9d         ; no error messages
+        cli
 
-        ; copy application code, resides on 00:1:bc00 and start
-        ldy #$03
-    pagecopy:
-        ldx #$00
-    bytecopy:
-        lda LOADER_SOURCE, x
-        sta LOADER_DEST, x
-        dex
-        bne bytecopy
-        inc bytecopy + 2  ; high byte of lda
-        inc bytecopy + 5  ; high byte of sta
-        dey
-        bne pagecopy
+        ; copy application code, resides on 00:1:be00 and start
+        ldy #$00
+      @loop:
+        lda LOADER_SOURCE, y
+        sta LOADER_DEST, y
+        iny
+        bne @loop
 
         ; start
         jmp LOADER_START

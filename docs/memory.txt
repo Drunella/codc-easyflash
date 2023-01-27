@@ -42,8 +42,8 @@ Cartridge Memory Map
      1900      EAPI       
      1A00      EAPI
      1B00      config
-     1C00      [loader]
-     1D00      [loader]
+     1C00      
+     1D00      
      1E00      [loader]
      1F00      Startup Code & Reset Vector (init.s)
 

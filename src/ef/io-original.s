@@ -138,6 +138,8 @@
         iny
         bne @loop
 
+;        jsr EFS_init_minieapi
+
         lda wrapper_memory_conf
         sta $01
 
