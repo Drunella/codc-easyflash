@@ -1,0 +1,9 @@
+type = symaddr
+; replace jmpt or jsr address with new address
+; offset: - startaddress + 2 bytes
+; $2899  20 BA FF => (setlfs)
+filename  = object.prg
+offset    = -0x07fe
+address   = 0x289a
+oldtarget = 0xffba
+newtarget = symbol(wrapper_setlfs)

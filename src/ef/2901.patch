@@ -1,0 +1,9 @@
+type = symaddr
+; replace jmpt or jsr address with new address
+; offset: - startaddress + 2 bytes
+; $2901  20 BD FF => (setnam)
+filename  = object.prg
+offset    = -0x07fe
+address   = 0x2902
+oldtarget = 0xffbd
+newtarget = symbol(wrapper_setnam)

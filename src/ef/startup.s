@@ -223,22 +223,22 @@
         ldy #$08
         jsr EFS_load
 
-        ; load wrapper
-        ldy #$00
-        jsr EFS_setlfs
-
-        lda #wrapper_name_length
-        ldx #<wrapper_name
-        ldy #>wrapper_name
-        jsr EFS_setnam
-
-        lda #$00
-        ldx #$00
-        ldy #$01
-        jsr EFS_load
-
-        ; start game
-        jmp $0800
+;        ; load wrapper
+;        ldy #$00
+;        jsr EFS_setlfs
+;
+;        lda #wrapper_name_length
+;        ldx #<wrapper_name
+;        ldy #>wrapper_name
+;        jsr EFS_setnam
+;
+;        lda #$00
+;        ldx #$00
+;        ldy #$01
+;        jsr EFS_load
+;
+;        ; start game
+;        jmp $0800
 
 
     titlepicture_name:
@@ -251,10 +251,10 @@
     object_name_end:
     object_name_length = object_name_end - object_name
 
-    wrapper_name:
-        .byte "io-original"
-    wrapper_name_end:
-    wrapper_name_length = wrapper_name_end - wrapper_name
+;    wrapper_name:
+;        .byte "io-original"
+;    wrapper_name_end:
+;    wrapper_name_length = wrapper_name_end - wrapper_name
 
 
 

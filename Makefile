@@ -30,7 +30,7 @@ CC65FLAGS=-t $(TARGET) -O
 .PHONY: clean all easyflash mrproper
 
 EF_LOADER_FILES=build/ef/loader.o
-EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/startup.o build/ef/loadeapi.o
+EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/startup.o
 
 # all
 all: easyflash
@@ -117,13 +117,14 @@ build/ef/object-da.s: build/ef/files.list src/ef/object-da.info src/ef/object-ex
 	rm -f build/ef/temp1.s
 
 # object.prg
-build/ef/object.prg: build/ef/io-original.prg
+build/ef/object.prg build/ef/patches.done: build/ef/io-original.prg
 	SDL_VIDEODRIVER=dummy c1541 -attach disks/castle.d64 -read object ./build/ef/object.prg
-	# patch ###
+	tools/prgpatch.py -v -f build/ef -m build/ef/io-original.map src/ef/*.patch
 	echo "./build/ef/object.prg, OBJECT, 1, 0" >> ./build/ef/files.list
+	touch ./build/ef/patches.done
 
 # build efs
-build/ef/data.dir.prg build/ef/data.files.prg: build/ef/files.list build/ef/object.prg build/ef/menu.prg
+build/ef/data.dir.prg build/ef/data.files.prg: build/ef/files.list ./build/ef/patches.done build/ef/menu.prg
 	tools/mkefs.py -v -s 507904 -o 0 -m lh -b 1 -n data -l ./build/ef/files.list -f . -d ./build/ef
 
 

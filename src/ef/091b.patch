@@ -1,0 +1,10 @@
+type = hex
+; replace jmp table with correct values
+; offset: startaddress - 2 bytes
+; $091B  20 10 2C => ea ea ea
+; removes copy protection
+filename = object.prg
+offset   = -0x07fe
+address  = 0x091b
+original = 20102c
+new      = eaeaea

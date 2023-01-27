@@ -151,8 +151,8 @@ def main(argv):
     p.add_argument("-o", dest="outputfile", action="store", required=True, help="bin output file.")
     args = p.parse_args()
 #    source_path = args.source
-    temp_path = os.path.join(args.build, "temp")
-    os.makedirs(temp_path, exist_ok=True)
+#    temp_path = os.path.join(args.build, "temp")
+#    os.makedirs(temp_path, exist_ok=True)
     build_path = args.build
     os.makedirs(build_path, exist_ok=True)
     #obj_path = os.path.join(args.build, "obj")

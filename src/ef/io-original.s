@@ -20,11 +20,11 @@
 .include "easyflash.i"
 
 
-.export _wrapper_setlfs
-.export _wrapper_setnam
-.export _wrapper_load
-.export _wrapper_save
-.export _wrapper_readst
+.export wrapper_setlfs
+.export wrapper_setnam
+.export wrapper_load
+.export wrapper_save
+.export wrapper_readst
 
 
 .segment "IO_WRAPPER"
@@ -32,28 +32,28 @@
     ; starts at $1e8f
     ; should not exceed 128 bytes
 
-    _check_disk:
+    check_disk:
         rts
 
-    _wrapper_readst:
+    wrapper_readst:
         ; @ &1e90
         jmp EFS_readst
 
-    _wrapper_setlfs:
+    wrapper_setlfs:
         ; @ $1e93
         jmp EFS_setlfs
 
-    _wrapper_setnam:
+    wrapper_setnam:
         ; @ $1e96
         jmp EFS_setnam
 
-    _wrapper_load:
+    wrapper_load:
         ; @ $1e99
         jsr wrapper_enter
         jsr EFS_load
         jsr wrapper_leave
 
-    _wrapper_save:
+    wrapper_save:
         ; @ $1ea2
         jsr wrapper_enter
         jsr EFS_save

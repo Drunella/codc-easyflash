@@ -1,0 +1,9 @@
+type = symaddr
+; replace jmpt or jsr address with new address
+; offset: - startaddress + 2 bytes
+; $242A  20 B7 FF => (readst)
+filename  = object.prg
+offset    = -0x07fe
+address   = 0x242b
+oldtarget = 0xffb7
+newtarget = symbol(wrapper_readst)

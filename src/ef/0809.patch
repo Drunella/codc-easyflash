@@ -1,0 +1,9 @@
+type = hex
+; replace jmp table with correct values
+; offset: startaddress - 2 bytes
+; $0809  4C 47 20 => 4c 47 17
+filename = object.prg
+offset   = -0x07fe
+address  = 0x0809
+original = 4c4720
+new      = 4c4717

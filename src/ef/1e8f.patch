@@ -1,0 +1,6 @@
+type = prgbin
+; replace jmp table with correct values
+; offset: startaddress - 2 bytes
+; $0803  4C 0C 73 => 4c 0c 4a
+filename = object.prg
+prg = build/ef/io-original.prg
