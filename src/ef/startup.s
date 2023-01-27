@@ -236,9 +236,9 @@
 ;        ldx #$00
 ;        ldy #$01
 ;        jsr EFS_load
-;
-;        ; start game
-;        jmp $0800
+
+        ; start game
+        jmp $0800
 
 
     titlepicture_name:

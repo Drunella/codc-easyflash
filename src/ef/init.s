@@ -127,10 +127,19 @@ LOADER_START = $c000
 ;        bne :-
 
         ; c64 reset
-        jsr $fda3  ; initialize i/o
-        jsr $fd50  ; initialize memory
-        jsr $fd15  ; set io vectors
-        jsr $ff5b  ; more init ; necessary?
+;        jsr $fda3  ; initialize i/o
+
+        jsr $ff84   ; Initialise I/O
+        jsr $ff87   ; Initialise System Constants
+        jsr $ff8a   ; Restore Kernal Vectors
+        jsr $ff81   ; Initialize screen editor
+;        jsr $e453   ; initialise vectors (this is important for codc)
+;        jsr $e3bf   ; initialize basic (this is important for codc)
+
+;        jsr $fd50  ; initialize memory
+;        jsr $fd15  ; set io vectors
+;        jsr $ff5b  ; more init ; necessary?
+
         cli
 
         ; screen black again

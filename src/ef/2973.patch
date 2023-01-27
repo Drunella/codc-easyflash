@@ -1,9 +1,10 @@
 type = hex
 ; replace jmp table with correct values
 ; offset: startaddress - 2 bytes
-; $0803  4C 0C 73 => 4c 0c 4a
+; no long wait before restart
+; $2973  48 8a 48 -> 4c 5f 09
 filename = object.prg
 offset   = -0x07fe
-address  = 0x0803
-original = 4c0c73
-new      = 4c0c41
+address  = 0x2973
+original = 488a48
+new      = 4c5f09

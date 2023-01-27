@@ -39,8 +39,8 @@ $1F28
 
 
 
-$1E8F to $1F18 : check disk, obsolete (137 bytes, space for wrapper)
-      to $1F26 : check disk data, obsolete
+$1E8F to $1F18 : check disk, obsolete (137 bytes)
+      to $1F26 : check disk data, obsolete (151 bytes)
 $1f27: disk type value: 
 0=game disk
 1=non game disk
@@ -50,5 +50,5 @@ $1f28: 'I' for initialize disk: obsolete
 $2920 to $2972 : io prepare, rewrite
 
 $2C10 to $2CB0 : copy protection, obsolete
-      to $2CD7 : further copy protection, obsolete
+      to $2CD7 : further copy protection, obsolete (199 bytes)
 

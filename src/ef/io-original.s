@@ -32,8 +32,8 @@
     ; starts at $1e8f
     ; should not exceed 128 bytes
 
-    check_disk:
-        rts
+;    check_disk:
+;        rts
 
     wrapper_readst:
         ; @ &1e90
@@ -51,7 +51,7 @@
         ; @ $1e99
         jsr wrapper_enter
         jsr EFS_load
-        jsr wrapper_leave
+        jmp wrapper_leave
 
     wrapper_save:
         ; @ $1ea2
@@ -64,23 +64,40 @@
         pha
         tya
         pha
+        txa
+        pha
+
+        ; save memory config
+        lda $01
+        sta wrapper_memory_conf
+
+        sei  ; cannot run with active interrupts
 
         ; disable vic
+        lda $d020
+        sta wrapper_color_backup
+        lda #$00
+        sta $d020
         lda $d011
         and #%11101111  ; disable 
         sta $d011
 
-        ; save $0400 area
+        ; save $0400, $0500, %0600 area
+        lda #$30  ; bank in memory under io
+        sta $01
+        
         ldy #$00
       @loop:
         lda $0400, y
-        sta $b900, y
+        sta $d400, y
+        lda $0500, y
+        sta $d500, y
+        lda $0600, y
+        sta $d600, y
         iny
         bne @loop
 
         ; bank in
-        lda $01
-        sta wrapper_memory_conf
         lda #$37
         sta $01
         lda #$87     ; led, 16k mode
@@ -89,11 +106,13 @@
         sta $de00
    
         ; init eapi
-        lda #$02     ; load to $0200
+        lda #$04     ; load to $0400
         jsr EFS_init_eapi
 
         pla
         tax
+        pla
+        tay
         pla
         rts
 
@@ -104,20 +123,32 @@
         tya
         pha
 
-        lda wrapper_memory_conf
+        ; restore $0400 area
+        lda #$30  ; bank in memory under io
         sta $01
 
-        ; restore $0400 area
+        ldy #$00
       @loop:
-        lda $b900, y
+        lda $d400, y
         sta $0400, y
+        lda $d500, y
+        sta $0500, y
+        lda $d600, y
+        sta $0600, y
         iny
         bne @loop
 
+        lda wrapper_memory_conf
+        sta $01
+
         ; enable vic
+        lda wrapper_color_backup
+        sta $d020
         lda $d011
         ora #%00010000  ; enable
         sta $d011
+
+        cli
 
         pla
         tay
@@ -129,5 +160,5 @@
     wrapper_memory_conf:
         .byte $00
 
-
-
+    wrapper_color_backup:
+        .byte $00

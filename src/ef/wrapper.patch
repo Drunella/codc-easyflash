@@ -1,9 +1,6 @@
-type = hex
+type = prgbin
 ; replace jmp table with correct values
 ; offset: startaddress - 2 bytes
 ; $0803  4C 0C 73 => 4c 0c 4a
 filename = object.prg
-offset   = -0x07fe
-address  = 0x0803
-original = 4c0c73
-new      = 4c0c41
+prg = build/ef/io-original.prg

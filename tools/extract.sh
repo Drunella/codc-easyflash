@@ -38,13 +38,24 @@ if [ "$mode" -eq "1" ] ; then
     rm -rf $destination
     mkdir -p "$destination"
     pushd "$destination"
+    SDL_VIDEODRIVER=dummy c1541 -attach "$disk" -list > ./dir.list
     SDL_VIDEODRIVER=dummy c1541 -attach "$disk" -extract
     popd
     mv $destination/.pic* "$destination/titlepic"
-#    find "$destination" -name 'titlepic' -printf "%p, TITLEPIC, 1, 0\n" >> "$fileslist"
-#    find "$destination" -name 'z*' -printf "%p, %P, 1, 0\n" >> "$fileslist"
-#    find "$destination" -name 'music*' -printf "%p, %P, 1, 0\n" >> "$fileslist"
-    count=$(ls -1 | grep -v total | wc -l)
+    index=0
+    while IFS= read -r line; do
+        ((index++))
+        substr=$(echo $line | cut -d'"' -f 2)
+        if [ "${substr:0:1}" = "z" ] ; then
+            dest=$(printf "%02d%s" $index $substr)
+            mv "./build/files/$substr" "./build/files/$dest"
+        fi
+        if [ "${substr:0:1}" = "m" ] ; then
+            dest=$(printf "%02d%s" $index $substr)
+            mv "./build/files/$substr" "./build/files/$dest"
+        fi
+    done < ./build/files/dir.list
+    count=$(ls -1 ./build/files/ | grep -v total | wc -l)
     echo "extracted $count files from $disk"
 
     for filename in $destination/* ; do
@@ -53,21 +64,20 @@ if [ "$mode" -eq "1" ] ; then
         if [ "${basename}" = "titlepic" ] ; then
             echo "$filename, ${destname}, 1, 0" >> "$fileslist"
         fi
-        if [ "${basename:0:5}" = "music" ] ; then
-            echo "$filename, ${destname}, 1, 0" >> "$fileslist"
+        if [ "${basename:2:5}" = "music" ] ; then
+            echo "$filename, ${destname:2}, 1, 0" >> "$fileslist"
         fi
-        if [ "${basename:0:1}" = "z" ] ; then
-            echo "$filename, ${destname}, 1, 0" >> "$fileslist"
+        if [ "${basename:2:1}" = "z" ] ; then
+            echo "$filename, ${destname:2}, 1, 0" >> "$fileslist"
         fi
-        if [ "${basename:0:1}" = "y" ] ; then
-            echo "$filename, ${destname}, 1, 0" >> "$fileslistrw"
-        fi
-
+        #if [ "${basename:0:1}" = "y" ] ; then
+        #    echo "$filename, ${destname}, 1, 0" >> "$fileslistrw"
+        #fi
     done
     
     exit 0
-
 fi
+
 
 if [ "$mode" -eq "3" ] ; then
     echo "remastered castle"
