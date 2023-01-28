@@ -131,13 +131,13 @@ build/ef/io-original.prg: build/ef/io-original.o
 	#echo "./build/ef/io-original.prg, IO-ORIGINAL, 1, 0" >> ./build/ef/files.list
 
 # disassemble of object
-build/ef/object-da.s: build/ef/files.list src/ef/object-da.info src/ef/object-exp.inc src/ef/object-patch.sh
+build/ef/object-da.s: build/ef/files.list src/ef/object-da.info
 	$(DA65) -i ./src/ef/object-da.info -o build/ef/object-da.s
 
 # object.prg
 build/ef/object.prg build/ef/patches.done: build/ef/io-original.prg
 	SDL_VIDEODRIVER=dummy c1541 -attach $(CASTLEDISK) -read object ./build/ef/object.prg
-	tools/prgpatch.py -v -f build/ef -m build/ef/io-original.map src/ef/*.patch
+	tools/prgpatch.py -v -f build/ef -m build/ef/io-original.map src/patch/*.patch
 	echo "./build/ef/object.prg, OBJECT, 1, 0" >> ./build/ef/files.list
 	touch ./build/ef/patches.done
 

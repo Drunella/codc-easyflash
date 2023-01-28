@@ -103,7 +103,7 @@ if [ "$mode" -eq "3" ] ; then
         fi
     done < "$destination/dir.list"
 
-    count=$(ls -1 | grep -v total | wc -l)
+    count=$(ls -1 $destination | grep -v total | wc -l)
     echo "extracted $count files from $disk"
     
     for filename in $destination/* ; do
