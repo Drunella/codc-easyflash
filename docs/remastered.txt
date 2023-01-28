@@ -2,4 +2,7 @@
 
 # License and Copyright
 
+Download the d64 file from:
 https://csdb.dk/release/?id=145120
+
+Copy d64 disk to the disks folder and rename it to castle3.d64.

@@ -1,6 +1,6 @@
 type = hex
 ; replace kernal call; filename ids
-; offset: real file offset in prg
+; offset: startaddress - 2 bytes
 ; READST -> EFS_setlfs
 filename = 3object.prg
 offset   = -0x07fe

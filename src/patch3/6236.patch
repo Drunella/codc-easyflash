@@ -1,9 +1,9 @@
 type = hex
 ; replace kernal call; filename ids
-; offset: startaddress - 2 bytes
-; times id change
+; offset: relative
+; files id change
 filename = 3object.prg
 offset   = -0x07fe
-address  = 0x3961
+address  = 0x6236
 original = a95a
 new      = a97a

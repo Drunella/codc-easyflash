@@ -327,26 +327,39 @@ def main(argv):
                 raise Exception("cannot find file " + pathname)
 
             load_file(pathname)
+            action = 0
             
             # apply patch
             if patch["type"] == "hex":
                 apply_patch_hex(patch)
+                action = 1
             elif patch["type"] == "prgbin":
                 apply_patch_prgbin(patch)
+                action = 1
             elif patch["type"] == "symaddr":
                 apply_patch_symaddr(patch)
+                action = 1
             elif patch["type"] == "symvalue":
                 apply_patch_symvalue(patch)
+                action = 1
+            elif patch["type"] == "skip":
+                action = 2
             else:
                 raise Exception("unknown patch " +  patch["type"])
             counter += 1
             if args.verbose:
-                print("patch " + p + " applied to " + pathname + ".")
+                if action == 1:
+                    print("patch " + p + " applied to " + pathname + ".")
+                elif action == 2:
+                    print("patch " + p + " skipped.")
+                else:
+                    print("patch " + p + " unknown what to do.")
+
             if dryrun is False:
                 save_file(pathname)
-#            else:
-#                if args.verbose:
-#                    print("dryrun: " + pathname + " not saved.")
+            else:
+                if args.verbose:
+                    print("dryrun: " + pathname + " not saved.")
             
 
         except AlreadyAppliedException as aae:

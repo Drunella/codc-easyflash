@@ -1,0 +1,9 @@
+type = hex
+; bugfix: diff between binary and compiled source
+; offset: startaddress - 2 bytes
+; $3757  a0 73 -> a0 36
+filename = 3object.prg
+offset   = -0x07fe
+address  = 0x3761
+original = a037
+new      = a036

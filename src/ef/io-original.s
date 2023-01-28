@@ -71,8 +71,6 @@
         lda $01
         sta wrapper_memory_conf
 
-;        sei  ; cannot run with active interrupts
-
         ; disable vic
         lda $d020
         sta wrapper_color_backup
@@ -83,6 +81,7 @@
         sta $d011
 
         ; save $0400, $0500, %0600 area
+        sei  ; no interrupts while io
         lda #$30  ; bank in memory under io
         sta $01
         
@@ -104,6 +103,7 @@
         sta $de02
         lda #$00     ; rom bank of efslib
         sta $de00
+        cli
    
         ; init eapi
         lda #$04     ; load to $0400
@@ -136,6 +136,7 @@
         sta $de02
 
         ; restore $0400 area
+        sei
         lda #$30     ; bank in memory under io
         sta $01
 
@@ -150,8 +151,6 @@
         iny
         bne @loop
 
-;        jsr EFS_init_minieapi
-
         lda wrapper_memory_conf
         sta $01
 
@@ -162,12 +161,10 @@
         ora #%00010000  ; enable
         sta $d011
 
-;        cli
-
         pla
         tay
         pla
-        plp
+        plp  ; removes sei
         rts
 
 

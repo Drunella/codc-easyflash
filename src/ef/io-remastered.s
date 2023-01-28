@@ -30,12 +30,6 @@
 
 
     wrapper_save:
-;        jsr wrapper_enter
-;        jsr EFS_save
-;        jmp wrapper_leave
-
-
-;    wrapper_enter:
         pha
         tya
         pha
@@ -44,7 +38,7 @@
         lda $01
         sta wrapper_memory_conf
 
-;        sei  ; cannot run with active interrupts
+        sei
 
         ; save $0400, $0500, %0600 area
         lda #$30  ; bank in memory under io
@@ -62,14 +56,8 @@
         bne @loop1
 
         jsr wrapper_bankin
-        ; bank in
-;        lda #$37
-;        sta $01
-;        lda #$87     ; led, 16k mode
-;        sta $de02
-;        lda #$00     ; rom bank of efslib
-;        sta $de00
-   
+        cli
+
         ; init eapi
         lda #$04     ; load to $0400
         jsr EFS_init_eapi
@@ -77,11 +65,10 @@
         pla
         tay
         pla
-        ;rts
 
+        ; do the actual saving
         jsr EFS_save
 
-;    wrapper_leave:
         php
         pha
         tya
@@ -91,6 +78,7 @@
         jsr wrapper_bankin
         jsr EFS_init_minieapi
 
+        sei
         jsr wrapper_bankout
 
         ; restore $400 area
@@ -115,7 +103,7 @@
         pla
         tay
         pla
-        plp
+        plp  ; removes sei
         rts
 
 
