@@ -20,6 +20,7 @@
 
 .include "easyflash.i"
 
+.import __EAPI_START__
 
 ;.import __LOADER_LOAD__
 ;.import __LOADER_RUN__
@@ -64,7 +65,8 @@
         sta $de00
         jsr EFS_init
 
-        jsr EFS_init_minieapi
+        lda #>__EAPI_START__
+        jsr EFS_init_eapi
 
         lda #$36
         sta $01
@@ -79,14 +81,14 @@
         ldy #>menu_name
         jsr EFS_setnam
         ldx #$00
-        ldy #$20
+        ldy #$10
         lda #$00
         jsr EFS_load
 ;        stx startup + 1
 ;        sty startup + 2
         
     startup:
-        jmp $2000
+        jmp $1000
 
 
     loader_text:

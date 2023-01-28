@@ -69,7 +69,7 @@ mrproper:
 # easyflash
 
 EF_LOADER_FILES=build/ef/loader.o
-EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/startup.o build/ef/startup-remastered.o build/ef/io-remastered.o build/ef/startup-original.o
+EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/utils.o build/ef/startup.o build/ef/startup-remastered.o build/ef/io-remastered.o build/ef/startup-original.o build/ef/filemanager.o
 
 # cartridge binary
 build/ef/codc-easyflash.bin: build/ef/init.bin src/ef/lib-efs.prg src/ef/eapi-am29f040.prg build/ef/loader.bin build/ef/config.bin build/ef/data.dir.prg build/ef/data.files.prg build/ef/data-rw.dir.prg build/ef/data-rw.files.prg

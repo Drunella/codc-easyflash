@@ -1,3 +1,23 @@
+save game management
+
+copy file to disk
+copy file to flash
+copy several files to disk
+copy several files to flash
+
+automatically rename
+ZCASTLE to zCASTLE (for remastered)
+  files only for remastered, observe file id sign
+
+YCASTLE to yCASTLE (for remastered) check file content)
+  start address 0x6400, size 0x79 + start address
+
+YCASTLE to YCASTEL (for original, check file content)
+  start address 0xb800, size 0x79 + start address
+normal files (save games) if content is valid
+  start addres 0x7800
+
+
 object changes
 
 fix copy protection:

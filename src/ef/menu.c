@@ -21,7 +21,7 @@
 #include "util.h"
 
 
-#define MENU_START_Y 15
+#define MENU_START_Y 14
 
 
 
@@ -31,25 +31,38 @@ static void draw_startmenu(void) {
     //     01234567890123456789001234567890123456789
     cputs("       The Castles of Doctor Creep\r\n"
           "\r\n"
-          "              Designed by\r\n"
-          "                Ed Hobb\r\n"
+          "               Designed by\r\n"
+          "                 Ed Hobb\r\n"
           "\r\n"
           " Copyright (c) 1984 Broderbund Software\r\n"
           "\r\n"
-          "       broken by blade runner 7/84\n\r"
           "          remastered by DrHonz\n\r"
           "\r\n\r\n"
           "     EasyFlash version by Drunella\r\n"
           "\r\n");
 }
 
-static void draw_version()
+static void draw_version_and_system()
 {
     char text[8];
     uint8_t n;
+    char* system;
     
-    n = sprintf(text, "v%d.%d", get_version_major(), get_version_minor());
+    system = get_system_string();
+    cputsxy(0, 24, system);
+    cputs(" C64");
+
+    n = sprintf(text, "v%d.%d.%d", get_version_major(), get_version_minor(), get_version_patch());
     cputsxy(39-n, 24, text);
+}
+
+
+void savegame_menu(void)
+{
+    filemanager_init();
+    
+    filemanager_test();
+
 }
 
 
@@ -77,7 +90,7 @@ void main(void)
             menu_option('M', "Savegame management");
             cputs("\r\n");
             menu_option('Q', "Quit to basic");
-            draw_version();
+            draw_version_and_system();
         }
         
         repaint = false;
@@ -96,8 +109,7 @@ void main(void)
             break;
 
         case 'm':
-            //savegame_main();
-            //draw_startmenu();
+            savegame_menu();
             repaint = true;
             break;
 

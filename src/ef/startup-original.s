@@ -99,8 +99,8 @@ LC07E:  lda     #$07                            ; C07E A9 07                    
         ldy     #$00                            ; C08F A0 00                    ..
         jsr     EFS_setlfs                      ; C091 20 BA FF                  ..
         lda     #titlepiclength
-        ldx     #>titlepicname
-        ldy     #<titlepicname
+        ldx     #<titlepicname
+        ldy     #>titlepicname
         jsr     EFS_setnam                      ; C09A 20 BD FF                  ..
         lda     #$00                            ; C09D A9 00                    ..
         ldx     #$00                            ; C09F A2 00                    ..

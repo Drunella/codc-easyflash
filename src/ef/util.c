@@ -24,7 +24,7 @@
 #include "util.h"
 
 
-uint8_t version[2] = {
+uint8_t version[3] = {
 #include "../../version.txt"
 };
 
@@ -37,6 +37,11 @@ uint8_t get_version_major()
 uint8_t get_version_minor()
 {
     return version[1];
+}
+
+uint8_t get_version_patch()
+{
+    return version[2];
 }
 
 
@@ -127,3 +132,17 @@ void menu_option(char key, char *desc)
     cputs(desc);
     cputs("\r\n");
 }
+
+
+char* get_system_string()
+{
+    uint8_t s = SYS_get_system();
+    switch(s) {
+        case 0: return "EU-PAL"; break;
+        case 1: return "NTSC-old"; break;
+        case 2: return "PAL-N"; break;
+        case 3: return "NTSC-new"; break;
+        default: return "Unknown"; break;
+    }
+}
+

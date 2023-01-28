@@ -22,6 +22,7 @@
 
 uint8_t get_version_major(void);
 uint8_t get_version_minor(void);
+uint8_t get_version_patch(void);
 
 void cart_kill(void);
 void cart_bankin(void);
@@ -35,7 +36,37 @@ void __fastcall__ init_loader(void);
 void __fastcall__ startup_game_original(void);
 void __fastcall__ startup_game_remastered(void);
 
-//void __fastcall__ load_eapi(uint8_t highaddress);
- 
+uint8_t __fastcall__ EFS_format_wrapper(void);
+uint8_t __fastcall__ EFS_defragment_wrapper(void);
+
+char* __fastcall__ EFS_get_endadress(void);
+uint8_t __fastcall__ EFS_readst_wrapper(void);
+uint8_t __fastcall__ EFS_setnam_wrapper(char* name, uint8_t length);
+uint8_t __fastcall__ EFS_setlfs_wrapper(uint8_t secondary);
+uint8_t __fastcall__ EFS_load_wrapper(char* address, uint8_t mode);
+uint8_t __fastcall__ EFS_open_wrapper(uint8_t mode);
+uint8_t __fastcall__ EFS_close_wrapper(void);
+uint8_t __fastcall__ EFS_chrin_wrapper(uint8_t* data);
+uint8_t __fastcall__ EFS_chrout_wrapper(uint8_t data);
+uint8_t __fastcall__ EFS_save_wrapper(char* startaddress, char* endaddress);
+
+uint8_t __fastcall__ SYS_get_system(void);
+char* get_system_string(void);
+void __fastcall__ TIMER_reset(void);
+uint32_t __fastcall__ TIMER_measure(void);
+
+
+#define FILEMANAGER_MEMORY 0x8000
+
+typedef struct {
+    char name[17];
+    uint8_t flags;
+    uint16_t size;  // in blocks
+} directory_entry_t;
+
+
+void filemanager_init(void);
+
+void filemanager_test(void); 
 
 #endif
