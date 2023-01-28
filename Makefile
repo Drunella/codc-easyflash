@@ -30,7 +30,7 @@ CC65FLAGS=-t $(TARGET) -O
 .PHONY: clean all easyflash mrproper
 
 EF_LOADER_FILES=build/ef/loader.o
-EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/startup.o
+EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/startup.o build/ef/startup-remastered.o build/ef/io-remastered.o
 
 # all
 all: easyflash
@@ -67,7 +67,7 @@ mrproper:
 # easyflash
 
 # cartridge binary
-build/ef/codc-easyflash.bin: build/ef/init.bin src/ef/lib-efs.prg src/ef/eapi-am29f040.prg build/ef/loader.bin build/ef/config.bin build/ef/data.dir.prg build/ef/data.files.prg build/ef/io-original.prg
+build/ef/codc-easyflash.bin: build/ef/init.bin src/ef/lib-efs.prg src/ef/eapi-am29f040.prg build/ef/loader.bin build/ef/config.bin build/ef/data.dir.prg build/ef/data.files.prg build/ef/data-rw.dir.prg build/ef/data-rw.files.prg
 	cp ./src/ef/crt.map ./build/ef/crt.map
 	cp ./src/ef/eapi-am29f040.prg ./build/ef/eapi-am29f040.prg
 	cp ./src/ef/lib-efs.prg ./build/ef/lib-efs.prg
@@ -83,6 +83,7 @@ build/ef/files.list: disks/castle.d64
 	@mkdir -p ./build/files
 	@mkdir -p ./build/ef
 	tools/extract.sh 1 disks/castle.d64 build/files build/ef/files.list build/ef/files-rw.list
+	tools/extract.sh 3 disks/castle3.d64 build/files3 build/ef/files.list build/ef/files-rw.list
 
 # easyflash init.bin
 build/ef/init.bin: build/ef/init.o
@@ -100,6 +101,14 @@ build/ef/config.bin: build/ef/config.o src/ef/config.cfg
 build/ef/menu.prg: $(EF_MENU_FILES)
 	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/menu.map -Ln ./build/ef/menu.lst -o $@ -C src/ef/menu.cfg c64.lib $(EF_MENU_FILES)
 	echo "./build/ef/menu.prg, MENU, 1, 1" >> ./build/ef/files.list
+
+# build efs
+build/ef/data.dir.prg build/ef/data.files.prg: build/ef/files.list ./build/ef/patches.done build/ef/patches3.done build/ef/menu.prg
+	tools/mkefs.py -v -s 507904 -o 0 -m lh -b 1 -n data -l ./build/ef/files.list -f . -d ./build/ef
+
+# build rw efs
+build/ef/data-rw.dir.prg build/ef/data-rw.files.prg: build/ef/files-rw.list
+	tools/mkefs.py -v -s 262144 -o 6144 -m lh -b 32 -n data-rw -l ./build/ef/files-rw.list -f . -d ./build/ef
 
 
 # ------------------------------------------------------------------------
@@ -123,13 +132,23 @@ build/ef/object.prg build/ef/patches.done: build/ef/io-original.prg
 	echo "./build/ef/object.prg, OBJECT, 1, 0" >> ./build/ef/files.list
 	touch ./build/ef/patches.done
 
-# build efs
-build/ef/data.dir.prg build/ef/data.files.prg: build/ef/files.list ./build/ef/patches.done build/ef/menu.prg
-	tools/mkefs.py -v -s 507904 -o 0 -m lh -b 1 -n data -l ./build/ef/files.list -f . -d ./build/ef
-
 
 # ------------------------------------------------------------------------
 # remastered game
+
+# io wrapper
+build/ef/io-remastered.prg: build/ef/io-remastered.o
+	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/io-remastered.map -Ln ./build/ef/io-remastered.lst -o $@ -C src/ef/io-remastered.cfg c64.lib build/ef/io-remastered.o
+        #echo "./build/ef/io-original.prg, IO-ORIGINAL, 1, 0" >> ./build/ef/files.list
+
+# object.prg
+build/ef/3object.prg build/ef/patches3.done:
+	#SDL_VIDEODRIVER=dummy c1541 -attach disks/castle3.d64 -read object ./build/ef/3object.prg
+	#tools/prgpatch.py -v -f build/ef -m build/ef/io-original.map src/ef/*.patch
+	cp ./disks/object-ef.prg build/ef/3object.prg
+	echo "./build/ef/3object.prg, 3OBJECT, 1, 0" >> ./build/ef/files.list
+	touch ./build/ef/patches3.done
+
 
 # get files list and files
 #build/ef/files.list: disks/castle.d64 disks/castle3.d64

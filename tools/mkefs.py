@@ -132,14 +132,14 @@ def efs_write(dirname, dataname):
     global data_directory, data_files, data_files_pointer, data_directory_pointer
     global verbose
     with open(dirname, "wb") as f:
-        f.write(b'\x00')  # write address of bank 0:1:0000 = 0xa000
-        f.write(b'\xa0')
+        f.write(b'\x00')  # write address of bank: ignore
+        f.write(b'\x00')
         f.write(data_directory) # always write full directory
     if verbose:
         print("directory written as " + dirname)
     with open(dataname, "wb") as f:
-        f.write(b'\x00')  # write address of bank b:0:0000 = 0x8000
-        f.write(b'\x80')
+        f.write(b'\x00')  # write address of bank: ignore
+        f.write(b'\x00')
         f.write(data_files[0:data_files_pointer])
     if verbose:
         print("data written with " + str(data_files_pointer)  + " bytes as " + dataname)

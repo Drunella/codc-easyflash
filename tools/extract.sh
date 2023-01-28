@@ -48,14 +48,14 @@ if [ "$mode" -eq "1" ] ; then
         substr=$(echo $line | cut -d'"' -f 2)
         if [ "${substr:0:1}" = "z" ] ; then
             dest=$(printf "%02d%s" $index $substr)
-            mv "./build/files/$substr" "./build/files/$dest"
+            mv "$destination/$substr" "$destination/$dest"
         fi
         if [ "${substr:0:1}" = "m" ] ; then
             dest=$(printf "%02d%s" $index $substr)
-            mv "./build/files/$substr" "./build/files/$dest"
+            mv "$destination/$substr" "$destination/$dest"
         fi
-    done < ./build/files/dir.list
-    count=$(ls -1 ./build/files/ | grep -v total | wc -l)
+    done < "$destination/dir.list"
+    count=$(ls -1 $destination | grep -v total | wc -l)
     echo "extracted $count files from $disk"
 
     for filename in $destination/* ; do
@@ -84,13 +84,25 @@ if [ "$mode" -eq "3" ] ; then
     rm -rf $destination
     mkdir -p "$destination"
     pushd "$destination"
+    SDL_VIDEODRIVER=dummy c1541 -attach "$disk" -list > ./dir.list
     SDL_VIDEODRIVER=dummy c1541 -attach "$disk" -extract
     popd
     mv $destination/pic* "$destination/titlepic"
-#    #add_name_prefix "$destination" 3
-#    find "$destination" -name 'titlepic' -printf "%p, 3TITLEPIC 1, 0\n" >> "$fileslist"
-#    find "$destination" -name 'z*' -printf "%p, %P, 1, 0\n" >> "$fileslist"
-#    find "$destination" -name 'music*' -printf "%p, %P, 1, 0\n" >> "$fileslist"
+
+    index=0
+    while IFS= read -r line; do
+        ((index++))
+        substr=$(echo $line | cut -d'"' -f 2)
+        if [ "${substr:0:1}" = "z" ] ; then
+            dest=$(printf "%02d%s" "$index" "$substr")
+            mv "$destination/$substr" "$destination/$dest"
+        fi
+        if [ "${substr:0:1}" = "m" ] ; then
+            dest=$(printf "%02d%s" "$index" "$substr")
+            mv "$destination/$substr" "$destination/$dest"
+        fi
+    done < "$destination/dir.list"
+
     count=$(ls -1 | grep -v total | wc -l)
     echo "extracted $count files from $disk"
     
@@ -100,14 +112,14 @@ if [ "$mode" -eq "3" ] ; then
         if [ "${basename}" = "titlepic" ] ; then
             echo "$filename, 3${destname}, 1, 0" >> "$fileslist"
         fi
-        if [ "${basename:0:5}" = "music" ] ; then
-            echo "$filename, 3${destname:1}, 1, 0" >> "$fileslist"
+        if [ "${basename:2:5}" = "music" ] ; then
+            echo "$filename, 3${destname:3}, 1, 0" >> "$fileslist"
         fi
-        if [ "${basename:0:1}" = "z" ] ; then
-            echo "$filename, ${destname,}, 1, 0" >> "$fileslist"
+        if [ "${basename:2:1}" = "z" ] ; then
+            echo "$filename, z${destname:3}, 1, 0" >> "$fileslist"
         fi
         if [ "${basename:0:1}" = "y" ] ; then
-            echo "$filename, ${destname,}, 1, 0" >> "$fileslistrw"
+            echo "$filename, y${destname:1}, 1, 0" >> "$fileslistrw"
         fi
         
     done

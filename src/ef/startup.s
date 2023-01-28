@@ -25,14 +25,20 @@
 .import __GAMESTART_RUN__
 .import __GAMESTART_SIZE__
 
-;.import __IO_WRAPPER_LOAD__
-;.import __IO_WRAPPER_RUN__
-;.import __IO_WRAPPER_SIZE__
+.import __IO_WRAPPER_LOAD__
+.import __IO_WRAPPER_RUN__
+.import __IO_WRAPPER_SIZE__
 
+.import __IO_BANKING_LOAD__
+.import __IO_BANKING_RUN__
+.import __IO_BANKING_SIZE__
+
+.import body_startup_remastered
 
 .export _init_loader
 .export _startup_game_remastered
 .export _startup_game_original
+.export WrapperStart
 
 
 .segment "CODE"
@@ -54,6 +60,8 @@
         lda #>__GAMESTART_SIZE__
         sta bytes_to_copy_high
         jsr copy_segment
+
+        jsr wrapper_prepare
 
         rts
 
@@ -94,6 +102,9 @@
 
 
 .segment "GAMESTART"
+
+; ------------------------------------------------------------------------
+; startup original game
 
     _startup_game_original:
       ; void __fastcall__ startup_game_original(void);
@@ -223,20 +234,6 @@
         ldy #$08
         jsr EFS_load
 
-;        ; load wrapper
-;        ldy #$00
-;        jsr EFS_setlfs
-;
-;        lda #wrapper_name_length
-;        ldx #<wrapper_name
-;        ldy #>wrapper_name
-;        jsr EFS_setnam
-;
-;        lda #$00
-;        ldx #$00
-;        ldy #$01
-;        jsr EFS_load
-
         ; start game
         jmp $0800
 
@@ -251,15 +248,62 @@
     object_name_end:
     object_name_length = object_name_end - object_name
 
-;    wrapper_name:
-;        .byte "io-original"
-;    wrapper_name_end:
-;    wrapper_name_length = wrapper_name_end - wrapper_name
+
+
+; ------------------------------------------------------------------------
+; startup remastered game
+
+
+    wrapper_prepare:
+        ldy #$00
+      @loop1:
+        lda __IO_WRAPPER_LOAD__, y
+        sta storage_wrapper_io, y
+        iny
+        cpy #<__IO_WRAPPER_SIZE__
+        bne @loop1
+        
+        ldy #$00
+      @loop2:
+        lda __IO_BANKING_LOAD__, y
+        sta storage_banking_io, y
+        iny
+        cpy #<__IO_BANKING_SIZE__
+        bne @loop2
+
+        rts
+
+
+    WrapperStart:
+        ; copy application code, resides on 00:1:be00 and start
+        ldy #$00
+      @loop1:
+        lda storage_wrapper_io, y
+        sta __IO_WRAPPER_RUN__, y
+        iny
+        cpy #<__IO_WRAPPER_SIZE__
+        bne @loop1
+        
+        ldy #$00
+      @loop2:
+        lda storage_banking_io, y
+        sta __IO_BANKING_RUN__, y
+        iny
+        cpy #<__IO_BANKING_SIZE__
+        bne @loop2
+
+        rts
+
+
+    storage_wrapper_io = __GAMESTART_RUN__ + __GAMESTART_SIZE__
+;        .res __IO_WRAPPER_SIZE__, $00
+
+    storage_banking_io = storage_wrapper_io + __IO_WRAPPER_SIZE__
+;        .res __IO_BANKING_SIZE__, $00
 
 
 
-
-
+/*
     PtrFrom             = $14                           ; 
     PtrFromLo           = $14                           ; 
     PtrFromHi           = $15                           ; 
@@ -278,15 +322,15 @@
     COLORAM             = $d800
 
     body_startup_remastered:
-        ldx #$00
-        lda #$20
-      @loop:   
-        sta $0400,x
-        sta $0500,x
-        sta $0600,x
-        sta $0700,x
-        dex
-        bne @loop
+;        ldx #$00
+;        lda #$20
+;      @loop:   
+;        sta $0400,x
+;        sta $0500,x
+;        sta $0600,x
+;        sta $0700,x
+;        dex
+;        bne @loop
 
         lda #$07
         sta $d020
@@ -423,3 +467,4 @@
         .byte "3object"
     x3object_name_end:
     x3object_name_length = x3object_name_end - x3object_name
+*/

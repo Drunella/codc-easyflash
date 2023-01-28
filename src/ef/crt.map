@@ -10,5 +10,5 @@
 0 f data.dir.prg          0xa000 0 0      lh
 1 f data.files.prg        0x8000 0 0      lh
 
-#32 f data-rw.dir.prg      0x8000 0 0      lh
-#32 f data-rw.files.prg    0x9800 0 0      lh
+32 f data-rw.dir.prg      0x8000 0 0      lh
+32 f data-rw.files.prg    0x9800 0 0      lh
