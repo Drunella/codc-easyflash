@@ -1,0 +1,101 @@
+# ----------------------------------------------------------------------------
+# Copyright 2023 Drunella
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ----------------------------------------------------------------------------
+
+GLOBAL {
+    INPUTNAME       "build/files/object";
+    STARTADDR       $0800;    # takes start addr into account
+    PAGELENGTH      0;        # No paging
+    INPUTOFFS       2;
+    CPU             "6502";
+    COMMENTS        4;
+};
+
+
+# outside labels
+LABEL { ADDR $FF84; NAME "KERNAL_IOINIT"; };
+LABEL { ADDR $FFB7; NAME "KERNAL_READST"; };
+LABEL { ADDR $FFBA; NAME "KERNAL_SETLFS"; };
+LABEL { ADDR $FFBD; NAME "KERNAL_SETNAM"; };
+LABEL { ADDR $FFC0; NAME "KERNAL_OPEN"; };
+LABEL { ADDR $FFC3; NAME "KERNAL_CLOSE"; };
+LABEL { ADDR $FFC6; NAME "KERNAL_CHKIN"; };
+LABEL { ADDR $FFC9; NAME "KERNAL_CHKOUT"; };
+LABEL { ADDR $FFCC; NAME "KERNAL_CLRCHN"; };
+LABEL { ADDR $FFCF; NAME "KERNAL_CHRIN"; };
+LABEL { ADDR $FFD2; NAME "KERNAL_CHROUT"; };
+LABEL { ADDR $FFD5; NAME "KERNAL_LOAD"; };
+LABEL { ADDR $FFD8; NAME "KERNAL_SAVE"; };
+LABEL { ADDR $FFE7; NAME "KERNAL_CLALL"; };
+
+
+# code segment for code and data
+#SEGMENT { START $0800;  END $c1ff; NAME "DATA_ALIGNED"; };
+SEGMENT { START $0800;  END $78c7; NAME "CODE"; };
+
+# lables
+LABEL { ADDR $1E8F; NAME "check_disk"; };
+LABEL { ADDR $291D; NAME "base_addresses_high"; };
+LABEL { ADDR $2920; NAME "prepare_io"; };
+LABEL { ADDR $288E; NAME "save_file"; };
+LABEL { ADDR $28EC; NAME "load_file"; };
+LABEL { ADDR $003e; NAME "operation_3e"; };
+
+# ranges
+RANGE { START $0800;  END $6039; TYPE code; };
+
+RANGE { START $603a;  END $60ab; TYPE addrtable; };
+RANGE { START $60ac;  END $78c7; TYPE bytetable; };
+
+
+
+
+#RANGE { START $c000;  END $c1ff; TYPE bytetable; };
+#LABEL { ADDR $c000; NAME "data_table_c000"; COMMENT "page aligned\n.align 256"; };
+#LABEL { ADDR $c100; NAME "data_table_c100"; };
+
+#RANGE { START $c200;  END $c353; TYPE code; };
+#RANGE { START $c200;  END $c207; TYPE skip; };
+#RANGE { START $c208;  END $c213; TYPE skip; };
+
+#LABEL { ADDR $c214; NAME "calc_return_value"; };
+#LABEL { ADDR $c215; NAME "calc_track_number"; };
+#LABEL { ADDR $c216; NAME "calc_sector_number"; };
+#RANGE { START $c214;  END $c216; TYPE ByteTable; };
+#LABEL { ADDR $c217; NAME "send_iec_byte_fastload"; };
+#LABEL { ADDR $c2bd; NAME "init_iec_fastload"; };
+#LABEL { ADDR $c287; NAME "recv_iec_byte_fastload"; };
+#LABEL { ADDR $c24e; NAME "modetracksector_iec_fastload"; };
+
+
+#LABEL { ADDR $c2da; NAME "loadsave_cbm_sector_fastload"; };
+#RANGE { START $c217;  END $c256; TYPE code; };
+
+#LABEL { ADDR $c259; NAME "load_highvalue_c257"; COMMENT "patch_line_replace_1"; };
+#RANGE { START $c257;  END $c258; TYPE skip; };
+
+#RANGE { START $c259;  END $c353; TYPE code; };
+#RANGE { START $c354;  END $c368; TYPE skip; };
+
+
+#LABEL { ADDR $c369; NAME "calculate_track_sector"; };
+#RANGE { START $c369;  END $c3b1; TYPE code; };
+#RANGE { START $c3b2;  END $c3d4; TYPE ByteTable; };
+#RANGE { START $c3d5;  END $c3f8; TYPE code; };
+#RANGE { START $c3f9;  END $c3fc; TYPE bytetable; };
+#RANGE { START $c3fd;  END $c404; TYPE addrtable; };
+#RANGE { START $c405;  END $c44f; TYPE ByteTable; };
+
+#RANGE { START $c450;  END $c9e9; TYPE skip; };

@@ -49,9 +49,9 @@
 
     wrapper_load:
         ; @ $1e99
-        jsr wrapper_enter
-        jsr EFS_load
-        jmp wrapper_leave
+;        jsr wrapper_enter
+        jmp EFS_load
+;        jmp wrapper_leave
 
     wrapper_save:
         ; @ $1ea2
@@ -71,7 +71,7 @@
         lda $01
         sta wrapper_memory_conf
 
-        sei  ; cannot run with active interrupts
+;        sei  ; cannot run with active interrupts
 
         ; disable vic
         lda $d020
@@ -123,8 +123,20 @@
         tya
         pha
 
+        lda #$37     ; bankin
+        sta $01
+        lda #$87     ; led, 16k mode
+        sta $de02
+        lda #$00     ; rom bank of efslib
+        sta $de00
+        ; set minieapi for loading
+        jsr EFS_init_minieapi
+
+        lda #$04     ; bankout
+        sta $de02
+
         ; restore $0400 area
-        lda #$30  ; bank in memory under io
+        lda #$30     ; bank in memory under io
         sta $01
 
         ldy #$00
@@ -150,7 +162,7 @@
         ora #%00010000  ; enable
         sta $d011
 
-        cli
+;        cli
 
         pla
         tay

@@ -30,12 +30,12 @@
 
 
     wrapper_save:
-        jsr wrapper_enter
-        jsr EFS_save
-        jmp wrapper_leave
+;        jsr wrapper_enter
+;        jsr EFS_save
+;        jmp wrapper_leave
 
 
-    wrapper_enter:
+;    wrapper_enter:
         pha
         tya
         pha
@@ -44,14 +44,14 @@
         lda $01
         sta wrapper_memory_conf
 
-        sei  ; cannot run with active interrupts
+;        sei  ; cannot run with active interrupts
 
         ; save $0400, $0500, %0600 area
         lda #$30  ; bank in memory under io
         sta $01
         
         ldy #$00
-      @loop:
+      @loop1:
         lda $0400, y
         sta $d400, y
         lda $0500, y
@@ -59,15 +59,16 @@
         lda $0600, y
         sta $d600, y
         iny
-        bne @loop
+        bne @loop1
 
+        jsr wrapper_bankin
         ; bank in
-        lda #$37
-        sta $01
-        lda #$87     ; led, 16k mode
-        sta $de02
-        lda #$00     ; rom bank of efslib
-        sta $de00
+;        lda #$37
+;        sta $01
+;        lda #$87     ; led, 16k mode
+;        sta $de02
+;        lda #$00     ; rom bank of efslib
+;        sta $de00
    
         ; init eapi
         lda #$04     ; load to $0400
@@ -76,10 +77,11 @@
         pla
         tay
         pla
-        rts
+        ;rts
 
+        jsr EFS_save
 
-    wrapper_leave:
+;    wrapper_leave:
         php
         pha
         tya
@@ -93,7 +95,7 @@
 
         ; restore $400 area
         ldy #$00
-      @loop:
+      @loop2:
         lda $d400, y
         sta $0400, y
         lda $d500, y
@@ -101,14 +103,14 @@
         lda $d600, y
         sta $0600, y
         iny
-        bne @loop
+        bne @loop2
 
 
     wrapper_memory_conf = * + 1
         lda #37
         sta $01
 
-        cli
+;        cli
 
         pla
         tay

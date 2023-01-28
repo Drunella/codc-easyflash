@@ -1,0 +1,9 @@
+type = hex
+; replace kernal call; filename ids
+; offset: offset for address and start address
+; times id change
+filename = 3object.prg
+offset   = -0x07fe
+address  = 0x3961
+original = a95a
+new      = a97a

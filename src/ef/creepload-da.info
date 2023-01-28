@@ -1,0 +1,48 @@
+# ----------------------------------------------------------------------------
+# Copyright 2023 Drunella
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ----------------------------------------------------------------------------
+
+GLOBAL {
+    INPUTNAME       "build/files/creepload";
+    STARTADDR       $c000;    # takes start addr into account
+    PAGELENGTH      0;        # No paging
+    INPUTOFFS       2;
+    CPU             "6502";
+    COMMENTS        4;
+};
+
+
+# outside labels
+LABEL { ADDR $FFBA; NAME "EFS_setlfs"; };
+LABEL { ADDR $FFBD; NAME "EFS_setnam"; };
+LABEL { ADDR $FFD5; NAME "EFS_load"; };
+
+
+# code segment for code and data
+SEGMENT { START $c000;  END $c22e; NAME "CODE"; };
+
+# lables
+LABEL { ADDR $c156; NAME "titlepicname"; };
+LABEL { ADDR $c165; NAME "objectname"; };
+LABEL { ADDR $c16b; NAME "linesstart"; };
+LABEL { ADDR $c19d; NAME "textstart"; };
+LABEL { ADDR $c026; NAME "textstart_low"; };
+LABEL { ADDR $c02a; NAME "textstart_high"; };
+
+# ranges
+RANGE { START $c000; END $c155; TYPE code; };
+RANGE { START $c156; END $c16a; TYPE bytetable; };
+RANGE { START $c16b; END $c19c; TYPE wordtable; };
+RANGE { START $c19d; END $c33e; TYPE bytetable; };

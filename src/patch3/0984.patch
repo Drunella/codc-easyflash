@@ -1,0 +1,9 @@
+type = hex
+; replace kernal call; filename ids
+; offset: real file offset in prg
+; READST -> EFS-readst
+filename = 3object.prg
+offset   = -0x07fe
+address  = 0x0984
+original = 20b7ff
+new      = 2030df

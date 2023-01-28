@@ -1,6 +1,6 @@
 ; -------------------------------------------------------------------------------------------------------------- ;
 ; The Castles of Dr Creep - CREEP.PRG: Loader Code from $c000 to $c22e
-; adapted for EasyFlash
+; adapted for EasyFlash by Drunella
 ; -------------------------------------------------------------------------------------------------------------- ;
 
 .include "easyflash.i"

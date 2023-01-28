@@ -34,6 +34,7 @@
 .import __IO_BANKING_SIZE__
 
 .import body_startup_remastered
+.import body_startup_original
 
 .export _init_loader
 .export _startup_game_remastered
@@ -103,20 +104,90 @@
 
 .segment "GAMESTART"
 
-; ------------------------------------------------------------------------
-; startup original game
 
     _startup_game_original:
-      ; void __fastcall__ startup_game_original(void);
-      jmp body_startup_original
+        ; void __fastcall__ startup_game_original(void);
+        jsr restore_minieapi
+        jmp body_startup_original
 
 
     _startup_game_remastered:
-      ; void __fastcall__ startup_game_remastered(void);
-      jmp body_startup_remastered
+        ; void __fastcall__ startup_game_remastered(void);
+        jsr restore_minieapi
+        jmp body_startup_remastered
 
 
-    body_startup_original:
+    restore_minieapi:
+        lda #$37
+        sta $01
+        lda #$80 | $07  ; led, 16k mode
+        sta $de02
+        lda #$00        ; EFSLIB_ROM_BANK
+        sta $de00
+        jsr EFS_init
+
+        jsr EFS_init_minieapi
+
+        lda #$36
+        sta $01
+        lda #$04   ; easyflash off
+        sta $de02
+
+        rts
+        
+
+; ------------------------------------------------------------------------
+; startup remastered game
+
+
+    wrapper_prepare:
+        ldy #$00
+      @loop1:
+        lda __IO_WRAPPER_LOAD__, y
+        sta storage_wrapper_io, y
+        iny
+        cpy #<__IO_WRAPPER_SIZE__
+        bne @loop1
+        
+        ldy #$00
+      @loop2:
+        lda __IO_BANKING_LOAD__, y
+        sta storage_banking_io, y
+        iny
+        cpy #<__IO_BANKING_SIZE__
+        bne @loop2
+
+        rts
+
+
+    WrapperStart:
+        ldy #$00
+      @loop1:
+        lda storage_wrapper_io, y
+        sta __IO_WRAPPER_RUN__, y
+        iny
+        cpy #<__IO_WRAPPER_SIZE__
+        bne @loop1
+        
+        ldy #$00
+      @loop2:
+        lda storage_banking_io, y
+        sta __IO_BANKING_RUN__, y
+        iny
+        cpy #<__IO_BANKING_SIZE__
+        bne @loop2
+
+        rts
+
+
+    storage_wrapper_io = __GAMESTART_RUN__ + __GAMESTART_SIZE__
+
+    storage_banking_io = storage_wrapper_io + __IO_WRAPPER_SIZE__
+
+
+
+
+/*    body_startup_original:
         ; void __fastcall__ startup_game(void);
         lda #$7f   ; disable interrupts
         sta $dc0d
@@ -247,60 +318,7 @@
         .byte "object"
     object_name_end:
     object_name_length = object_name_end - object_name
-
-
-
-; ------------------------------------------------------------------------
-; startup remastered game
-
-
-    wrapper_prepare:
-        ldy #$00
-      @loop1:
-        lda __IO_WRAPPER_LOAD__, y
-        sta storage_wrapper_io, y
-        iny
-        cpy #<__IO_WRAPPER_SIZE__
-        bne @loop1
-        
-        ldy #$00
-      @loop2:
-        lda __IO_BANKING_LOAD__, y
-        sta storage_banking_io, y
-        iny
-        cpy #<__IO_BANKING_SIZE__
-        bne @loop2
-
-        rts
-
-
-    WrapperStart:
-        ; copy application code, resides on 00:1:be00 and start
-        ldy #$00
-      @loop1:
-        lda storage_wrapper_io, y
-        sta __IO_WRAPPER_RUN__, y
-        iny
-        cpy #<__IO_WRAPPER_SIZE__
-        bne @loop1
-        
-        ldy #$00
-      @loop2:
-        lda storage_banking_io, y
-        sta __IO_BANKING_RUN__, y
-        iny
-        cpy #<__IO_BANKING_SIZE__
-        bne @loop2
-
-        rts
-
-
-    storage_wrapper_io = __GAMESTART_RUN__ + __GAMESTART_SIZE__
-;        .res __IO_WRAPPER_SIZE__, $00
-
-    storage_banking_io = storage_wrapper_io + __IO_WRAPPER_SIZE__
-;        .res __IO_BANKING_SIZE__, $00
-
+*/
 
 
 /*
