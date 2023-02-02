@@ -33,7 +33,7 @@
 .import __IO_BANKING_RUN__
 .import __IO_BANKING_SIZE__
 
-.import __WORK_START__
+.import __LOWER_START__
 
 .import body_startup_remastered
 .import body_startup_original
@@ -42,10 +42,6 @@
 .export _startup_game_remastered
 .export _startup_game_original
 .export WrapperStart
-
-.export _work_area
-
-_work_area := __WORK_START__
 
 
 .segment "CODE"

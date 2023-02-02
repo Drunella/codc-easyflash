@@ -57,23 +57,15 @@ static void draw_version_and_system()
 }
 
 
-void savegame_menu(void)
-{
-    filemanager_init();
-    
-    filemanager_test();
-
-}
-
-
 void main(void)
 {
-    static bool repaint;
-    
-    repaint = true;
+    uint8_t repaint;
+
+    EFS_init_eapi();
+
+    repaint = 2;
     bgcolor(COLOR_BLACK);
     bordercolor(COLOR_BLACK);
-    draw_startmenu();
     
     while (kbhit()) {
         cgetc();
@@ -81,7 +73,8 @@ void main(void)
     
     for (;;) {
         
-        if (repaint) {
+        if (repaint > 0) {
+            if (repaint > 1) draw_startmenu();
             menu_clear(MENU_START_Y, 24);
             menu_option('G', "Start original");
             cputs("\r\n");
@@ -92,8 +85,7 @@ void main(void)
             menu_option('Q', "Quit to basic");
             draw_version_and_system();
         }
-        
-        repaint = false;
+        repaint = 0;
         
         switch (cgetc()) {
         case 'g':
@@ -110,7 +102,7 @@ void main(void)
 
         case 'm':
             savegame_menu();
-            repaint = true;
+            repaint = 2;
             break;
 
         case 'q':

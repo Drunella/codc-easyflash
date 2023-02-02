@@ -39,6 +39,7 @@ void __fastcall__ startup_game_remastered(void);
 uint8_t __fastcall__ EFS_format_wrapper(void);
 uint8_t __fastcall__ EFS_defragment_wrapper(void);
 
+void __fastcall__ EFS_init_eapi(void);
 char* __fastcall__ EFS_get_endadress(void);
 uint8_t __fastcall__ EFS_readst_wrapper(void);
 uint8_t __fastcall__ EFS_setnam_wrapper(char* name, uint8_t length);
@@ -49,6 +50,12 @@ uint8_t __fastcall__ EFS_close_wrapper(void);
 uint8_t __fastcall__ EFS_chrin_wrapper(uint8_t* data);
 uint8_t __fastcall__ EFS_chrout_wrapper(uint8_t data);
 uint8_t __fastcall__ EFS_save_wrapper(char* startaddress, char* endaddress);
+
+void __fastcall__ cbm_device_clear_status(void);
+char* __fastcall__ cbm_device_last_status(void);
+uint8_t __fastcall__ cbm_device_last_statuscode(void);
+void __fastcall__ cbm_device_get_status(uint8_t device);
+uint8_t __fastcall__ cbm_device_ispresent(uint8_t device);
 
 uint8_t __fastcall__ SYS_get_system(void);
 char* get_system_string(void);
@@ -65,8 +72,7 @@ typedef struct {
 } directory_entry_t;
 
 
-void filemanager_init(void);
+void savegame_menu(void);
 
-void filemanager_test(void); 
 
 #endif

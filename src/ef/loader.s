@@ -20,7 +20,8 @@
 
 .include "easyflash.i"
 
-.import __EAPI_START__
+;.import eapi_buffer
+;.import __EAPI_START__
 
 ;.import __LOADER_LOAD__
 ;.import __LOADER_RUN__
@@ -49,7 +50,7 @@
 
         ; write loading...
         ldx #$00
-    :   lda loader_text, x
+      : lda loader_text, x
         sta $07e8 - loader_text_len, x  ; write text
         lda #$0c  ; COLOR_GRAY2
         sta $dbe8 - loader_text_len, x  ; write color
@@ -65,8 +66,8 @@
         sta $de00
         jsr EFS_init
 
-        lda #>__EAPI_START__
-        jsr EFS_init_eapi
+        ;lda #>eapi_buffer
+        jsr EFS_init_minieapi
 
         lda #$36
         sta $01

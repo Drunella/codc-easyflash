@@ -15,15 +15,17 @@
 ; ----------------------------------------------------------------------------
 
 .feature c_comments
+.localchar '@'
 
 .include "easyflash.i"
 
 .import popa 
 .import popax
-.import sreg
+.importzp sreg
 
 .import _cputc
 
+.export _EFS_init_eapi
 .export _EFS_defragment_wrapper
 .export _EFS_format_wrapper
 .export _EFS_get_endadress
@@ -37,10 +39,21 @@
 .export _EFS_chrout_wrapper
 .export _EFS_save_wrapper
 
+.export _cbm_device_clear_status
+.export _cbm_device_last_status
+.export _cbm_device_last_statuscode
+.export _cbm_device_get_status
+.export _cbm_device_ispresent
+
 .export _SYS_get_system
 .export _TIMER_measure
 .export _TIMER_reset
 
+.export eapi_buffer
+
+
+; ------------------------------------------------------------------------
+; efs wrapper
 
 .segment "DATA"
 
@@ -48,7 +61,38 @@
         .word $0000
 
 
+.segment "LOWER"
+
+    ; buffer must not fall into bankable areas
+    eapi_buffer:
+        .align 256
+        .res 768, $00
+
+    name_buffer:
+        .res 16, $00
+
+
 .segment "CODE"
+
+    ; void __fastcall__ EFS_init_eapi(void);
+    _EFS_init_eapi:
+        ; bank easyflash in
+        lda #$37
+        sta $01
+        lda #$87   ; led, 16k mode
+        sta $de02
+        lda #$00   ; EFSLIB_ROM_BANK
+        sta $de00
+
+        lda #>eapi_buffer
+        jsr EFS_init_eapi
+
+        lda #$36
+        sta $01
+        lda #$04   ; easyflash off
+        sta $de02
+        rts
+
 
     ; uint8_t __fastcall__ EFS_defragment_wrapper(void);
     _EFS_defragment_wrapper:
@@ -116,13 +160,30 @@
     _EFS_setnam_wrapper:
         pha        ; length in A
         jsr popax  ; name in A/X
-        pha
-        txa
-        tay
-        pla
-        tax
-        pla
+        sta @copy + 1
+        stx @copy + 2
+;        pha
+;        txa
+;        tay
+;        pla
+;        tax
+;        pla
 
+        pla
+        tay
+        tax
+        beq @done
+        dex
+      @copy:
+        lda $1000, x
+        sta name_buffer, x
+        dex
+        bpl @copy
+
+      @done:
+        tya
+        ldx #<name_buffer
+        ldy #>name_buffer
         ; parameter:
         ;    A: name length
         ;    X: name address low
@@ -190,8 +251,8 @@
 
     ; uint8_t __fastcall__ EFS_chrin_wrapper(uint8_t* data);
     _EFS_chrin_wrapper:
-        sta <sreg
-        stx <sreg+1
+        sta sreg
+        stx sreg+1
 
 ;        sei
         jsr EFS_chrin
@@ -199,7 +260,7 @@
 
         bcs :+
         ldy #$00
-        sta (<sreg), y
+        sta (sreg), y
         tya
         tax
         rts
@@ -285,6 +346,174 @@
         rts
 
 
+; ------------------------------------------------------------------------
+; 1541 functions
+
+.segment "DATA"
+
+    cbm_device_drivenumber:
+        .byte $08
+
+    cbm_device_status:
+        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+    cbm_device_status_cursor:
+        .byte $00
+    cbm_device_status_code:
+        .byte $00
+
+
+.segment "CODE"
+
+    _cbm_device_clear_status:
+        ; void __fastcall__ cbm_device_clear_status();
+        ; parameter: none
+        ; return: none
+        lda #$00
+        sta cbm_device_status_cursor
+        sta cbm_device_status
+        rts
+
+
+    _cbm_device_last_status:
+        ; char* __fastcall__ _device_last_status();
+        ; parameter: none
+        ; return: A/X (low/high) pointer to status text
+        lda #<cbm_device_status
+        ldx #>cbm_device_status
+        rts
+
+
+    cbm_device_write_status:
+        ldx cbm_device_status_cursor
+        sta cbm_device_status, x
+        inx
+        lda #$00
+        sta cbm_device_status, x
+        stx cbm_device_status_cursor
+        rts
+
+
+    _cbm_device_last_statuscode:
+        ; uint8_t __fastcall__ _device_last_statuscode();
+        ; parameter: none
+        ; return: A:status code
+        lda cbm_device_status
+        bne :+  ; return 0 if string is empty
+        sta cbm_device_status_code
+        rts
+
+      : lda cbm_device_status
+        sec
+        sbc #$30
+        tax
+        lda #$00
+      : clc
+        adc #$0a
+        dex
+        bne :-
+        sta cbm_device_status_code
+
+        lda cbm_device_status + 1
+        sec
+        sbc #$30
+        clc
+        adc cbm_device_status_code
+        sta cbm_device_status_code
+        rts
+
+
+    _cbm_device_get_status:
+        ; void __fastcall_ cbm_device_get_status(uint8_t device)
+        ; parameter: A:device number
+        pha
+        jsr _cbm_device_clear_status
+
+        lda #$00      ; no filename
+        ldx #$00
+        ldy #$00
+        jsr $ffbd     ; call SETNAM
+
+        pla
+        tax           ; device number
+        lda #$0f      ; file number 15
+        ldy #$0f      ; secondary address 15 (error channel)
+        jsr $ffba     ; call SETLFS
+
+        jsr $ffc0     ; call OPEN
+        bcs :+++      ; if carry set, the file could not be opened
+
+        ldx #$0f      ; filenumber 15
+        jsr $ffc6     ; call CHKIN (file 15 now used as input)
+
+      : jsr $ffb7     ; call READST
+        bne :+
+        jsr $ffcf     ; call CHRIN
+        jsr cbm_device_write_status
+        jmp :-
+      : jsr _cbm_device_last_statuscode
+
+      : lda #$0f      ; filenumber 15
+        jsr $ffc3     ; call CLOSE
+        jsr $ffcc     ; call CLRCHN
+        rts
+
+
+    _cbm_device_ispresent:
+        ; uint8_t __fastcall__ cbm_device_ispresent(uint8_t device);
+        ; parameter: A:device number
+        ; return: A:0=device present, 1=device not present
+        tax
+        lda $ba
+        pha
+        txa
+        sta $ba
+
+        jsr _cbm_device_clear_status
+        lda #$00
+        sta $90       ; clear STATUS flags
+
+        lda $ba       ; device number
+        txa
+        jsr $ffb1     ; call LISTEN
+        lda #$6f      ; secondary address 15 (command channel)
+        jsr $ff93     ; call SECLSN (SECOND)
+        jsr $ffae     ; call UNLSN
+        lda $90       ; get STATUS flags
+        bne @np       ; device not present
+
+        lda $ba       ; device number
+        jsr $ffb4     ; call TALK
+        lda #$6f      ; secondary address 15 (error channel)
+        jsr $ff96     ; call SECTLK (TKSA)
+
+      : lda $90       ; get STATUS flags
+        bne :+        ; either EOF or error
+        jsr $ffa5     ; call IECIN (get byte from IEC bus)
+        jsr cbm_device_write_status
+        jmp :-        ; next byte
+      : jsr $ffab     ; call UNTLK
+        pla
+        sta $ba
+        lda #$00
+        ldx #$00
+        rts
+
+      @np:
+        pla
+        sta $ba
+        lda #$01
+        ldx #$00
+        rts
+
+
+
+; ------------------------------------------------------------------------
+; sys helper
+
     ; uint8_t __fastcall__ _SYS_get_system()
     _SYS_get_system:
         sei
@@ -340,3 +569,5 @@
         lda $dd04
 
         rts
+
+
