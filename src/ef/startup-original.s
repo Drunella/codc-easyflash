@@ -6,17 +6,17 @@
 
 .include "easyflash.i"
 
-.export body_startup_original
+.export startup_original_execute
 ;.import WrapperStart
 
 
-.segment "GAMESTART"
+.segment "GAMESTART_BODY"
 
 ; ----------------------------------------------------------------------------
 L0800           := $0800
 ; ----------------------------------------------------------------------------
 
-body_startup_original:
+startup_original_execute:
         lda     #$00                            ; C000 A9 00                    ..
         sta     $14                             ; C002 85 14                    ..
         lda     #$04                            ; C004 A9 04                    ..

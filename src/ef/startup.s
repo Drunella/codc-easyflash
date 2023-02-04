@@ -21,9 +21,13 @@
 .include "easyflash.i"
 
 
-.import __GAMESTART_LOAD__
-.import __GAMESTART_RUN__
-.import __GAMESTART_SIZE__
+.import __GAMESTART_CALL_LOAD__
+.import __GAMESTART_CALL_RUN__
+.import __GAMESTART_CALL_SIZE__
+
+.import __GAMESTART_BODY_LOAD__
+.import __GAMESTART_BODY_RUN__
+.import __GAMESTART_BODY_SIZE__
 
 .import __IO_WRAPPER_LOAD__
 .import __IO_WRAPPER_RUN__
@@ -35,10 +39,12 @@
 
 .import __LOWER_START__
 
-.import body_startup_remastered
-.import body_startup_original
+.import startup_remastered_execute
+.import startup_original_execute
 
 .export _init_loader
+.export _startup_menu
+.export _startup_manager
 .export _startup_game_remastered
 .export _startup_game_original
 .export WrapperStart
@@ -49,18 +55,33 @@
     _init_loader:
         ; void __fastcall__ init_loader(void);
 
-        ; load segment GAMESTART
-        lda #<__GAMESTART_LOAD__
+        ; load segment GAMESTART_CALL
+        lda #<__GAMESTART_CALL_LOAD__
         sta source_address_low
-        lda #>__GAMESTART_LOAD__
+        lda #>__GAMESTART_CALL_LOAD__
         sta source_address_high
-        lda #<__GAMESTART_RUN__
+        lda #<__GAMESTART_CALL_RUN__
         sta destination_address_low
-        lda #>__GAMESTART_RUN__
+        lda #>__GAMESTART_CALL_RUN__
         sta destination_address_high
-        lda #<__GAMESTART_SIZE__
+        lda #<__GAMESTART_CALL_SIZE__
         sta bytes_to_copy_low
-        lda #>__GAMESTART_SIZE__
+        lda #>__GAMESTART_CALL_SIZE__
+        sta bytes_to_copy_high
+        jsr copy_segment
+
+        ; load segment GAMESTART_BODY
+        lda #<__GAMESTART_BODY_LOAD__
+        sta source_address_low
+        lda #>__GAMESTART_BODY_LOAD__
+        sta source_address_high
+        lda #<__GAMESTART_BODY_RUN__
+        sta destination_address_low
+        lda #>__GAMESTART_BODY_RUN__
+        sta destination_address_high
+        lda #<__GAMESTART_BODY_SIZE__
+        sta bytes_to_copy_low
+        lda #>__GAMESTART_BODY_SIZE__
         sta bytes_to_copy_high
         jsr copy_segment
 
@@ -104,20 +125,120 @@
 
 
 
-.segment "GAMESTART"
+.segment "GAMESTART_CALL"
+
+    _startup_menu:
+        jmp startup_menu_body
+
+
+    _startup_manager:
+        ; void __fastcall__ startup_manager(void);
+        jmp startup_manager_body
 
 
     _startup_game_original:
         ; void __fastcall__ startup_game_original(void);
-        jsr restore_minieapi
-        jmp body_startup_original
+        jmp startup_original_body
 
 
     _startup_game_remastered:
         ; void __fastcall__ startup_game_remastered(void);
-        jsr restore_minieapi
-        jmp body_startup_remastered
+        jmp startup_remastered_body
 
+
+
+.segment "GAMESTART_BODY"
+
+    loader_text:
+        .byte $0c, $0f, $01, $04, $09, $0e, $07, $2e, $2e, $2e  ; "loading..."
+    loader_text_len = * - loader_text
+
+
+    menu_name:
+        .byte $4d, $45, $4e, $55  ; "MENU"
+    menu_name_end:
+    menu_name_length = menu_name_end - menu_name
+
+
+    manager_name:
+        .byte $4d, $41, $4e, $41, $47, $45, $52  ; "MANAGER"
+    manager_name_length = * - manager_name
+
+
+    startup_menu_body:
+        jsr startup_clearscreen
+        jsr startup_loading_text
+        ldy #$01  ; secondary address: load to destination
+        jsr EFS_setlfs
+        lda #menu_name_length
+        ldx #<menu_name
+        ldy #>menu_name
+        jsr EFS_setnam
+        ldx #$00
+        ldy #$10
+        lda #$00
+        jsr EFS_load
+        jmp $1000
+
+
+    startup_manager_body:
+        jsr startup_clearscreen
+        jsr startup_loading_text
+        ldy #$01  ; secondary address: load to destination
+        jsr EFS_setlfs
+        lda #manager_name_length
+        ldx #<manager_name
+        ldy #>manager_name
+        jsr EFS_setnam
+        ldx #$00
+        ldy #$10
+        lda #$00
+        jsr EFS_load
+        jmp $1000
+
+
+    startup_clearscreen:
+        ldx #$00
+        lda #$20
+      : sta $0400, x
+        sta $0500, x
+        sta $0600, x
+        sta $0700, x
+        inx
+        bne :-
+        rts
+
+
+    startup_loading_text:
+        ; lower character mode
+        lda #$17
+        sta $d018
+
+        lda $d011  ; enable output
+        ora #$10
+        sta $d011
+
+        ; write loading...
+        ldx #$00
+      : lda loader_text, x
+        sta $07e8 - loader_text_len, x  ; write text
+        lda #$0c  ; COLOR_GRAY2
+        sta $dbe8 - loader_text_len, x  ; write color
+        inx
+        cpx #loader_text_len
+        bne :-
+        rts
+
+
+    startup_original_body:
+        jsr restore_minieapi
+        jmp startup_original_execute
+
+
+    startup_remastered_body:
+        jsr restore_minieapi
+        jmp startup_remastered_execute
+        
 
     restore_minieapi:
         lda #$37
@@ -182,7 +303,7 @@
         rts
 
 
-    storage_wrapper_io = __GAMESTART_RUN__ + __GAMESTART_SIZE__
+    storage_wrapper_io = __GAMESTART_BODY_RUN__ + __GAMESTART_BODY_SIZE__
 
     storage_banking_io = storage_wrapper_io + __IO_WRAPPER_SIZE__
 

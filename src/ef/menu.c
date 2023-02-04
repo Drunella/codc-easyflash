@@ -56,11 +56,17 @@ static void draw_version_and_system()
     cputsxy(39-n, 24, text);
 }
 
+void savegame_menu()
+{
+    startup_manager();
+}
+
 
 void main(void)
 {
     uint8_t repaint;
-
+    
+    init_loader();
     EFS_init_eapi();
 
     repaint = 2;
@@ -90,13 +96,11 @@ void main(void)
         switch (cgetc()) {
         case 'g':
             menu_clear(MENU_START_Y,24);
-            init_loader();
             startup_game_original(); // does not return
             break;
 
         case 'r':
             menu_clear(MENU_START_Y,24);
-            init_loader();
             startup_game_remastered(); // does not return
             break;
 

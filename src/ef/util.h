@@ -35,6 +35,7 @@ void menu_option(char key, char *desc);
 void __fastcall__ init_loader(void);
 void __fastcall__ startup_game_original(void);
 void __fastcall__ startup_game_remastered(void);
+void __fastcall__ startup_manager(void);
 
 uint8_t __fastcall__ EFS_format_wrapper(void);
 uint8_t __fastcall__ EFS_defragment_wrapper(void);

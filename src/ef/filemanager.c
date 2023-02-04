@@ -32,13 +32,47 @@
 
 
 
+uint8_t busy_indicator_column;
+
+void filemanager_busy_indicator_column(uint8_t c)
+{
+    busy_indicator_column = c;
+}
+
+void filemanager_busy_indicator()
+{
+    static char busy = 1;
+
+    if (busy == 1) {
+        busy = 0;
+        cputsxy(FILES_WIDTH - 3, busy_indicator_column, "[*]");
+    } else {
+        busy = 1;
+        cputsxy(FILES_WIDTH - 3, busy_indicator_column, "[+]");
+    }
+}
+
+void filemanager_done_indicator()
+{
+    chlinexy(FILES_WIDTH - 3, busy_indicator_column, 3);
+}
+
+void filemanager_clear_indicator()
+{
+    cclearxy(FILES_WIDTH - 3, busy_indicator_column, 3);
+}
+
+
 uint16_t copy_file(uint8_t dstdevice, char* srcname, uint8_t srcdevice)
 {
     uint8_t n, srcretval, dstretval, value, status;
     char dstname[25];
+    uint16_t counter;
 
     srcretval = 0;
     dstretval = 0;
+    counter = 0;
+    filemanager_busy_indicator_column(24);
 
     if (dstdevice == srcdevice) return 0xffff;
     if (dstdevice > 0 && srcdevice > 0) return 0xffff;
@@ -90,6 +124,8 @@ uint16_t copy_file(uint8_t dstdevice, char* srcname, uint8_t srcdevice)
             dstretval = EFS_chrout_wrapper(value);
             if (status == 0x40) break;
             if (dstretval != 0) break;
+            counter++;
+            if ((counter & 0x000f) == 0) filemanager_busy_indicator();
         }
     
     } else if (srcdevice == 0 && dstdevice > 0) {
@@ -100,6 +136,8 @@ uint16_t copy_file(uint8_t dstdevice, char* srcname, uint8_t srcdevice)
             cbm_k_bsout(value);
             if (status == 0x40) break;
             if (srcretval != 0) break;
+            counter++;
+            if ((counter & 0x000f) == 0) filemanager_busy_indicator();
         }
     
     } else {
@@ -111,6 +149,7 @@ finish:
     cbm_k_close(2);
     cbm_k_close(3);
     EFS_close_wrapper();
+    filemanager_clear_indicator();
     return ((uint16_t)dstretval)*256 + (uint16_t)dstretval;
 }
 
@@ -196,11 +235,11 @@ uint8_t text_to_type(char* type)
     } else if (strncmp(typeonly, "dir", 3) == 0) {
         flags |= 0x40;    
     } else if (strncmp(typeonly, "crt", 3) == 0) {
-        flags |= 0x07;    
+        flags |= 0x11;    
     } else if (strncmp(typeonly, "ocn", 3) == 0) {
-        flags |= 0x08;    
+        flags |= 0x12;    
     } else if (strncmp(typeonly, "xba", 3) == 0) {
-        flags |= 0x09;    
+        flags |= 0x13;    
     } 
     // ### check for other types
     // SEQ, USR, REL, DEL, CBM, DIR
@@ -209,41 +248,44 @@ uint8_t text_to_type(char* type)
     return flags;
 }
 
+char* type_to_text(uint8_t type)
+{
+    type = type & 0x7f;
+    switch (type) {
+        case 0x01:
+            return "prg";
+        case 0x02:
+            return "seq";
+        case 0x03:
+            return "usr";
+        case 0x04:
+            return "rel";
+        case 0x05:
+            return "cbm";
+        case 0x11:
+            return "crt";
+        case 0x12:
+            return "ocn";
+        case 0x13:   
+            return "xba";
+        case 0x20:
+            return "del";
+        case 0x40:
+            return "dir";
+        default:
+            return "???";
+    }
+}
+
 
 void filemanager_empty_directory(directory_entry_t* destination)
 {
     destination[0].name[0] = 0;
     destination[0].flags = 0;
-    destination[0].size = 0;
+    destination[0].size = 0;  // zero elements
     destination[1].name[0] = 0;
     destination[1].flags = 0xff;
     destination[1].size = 0;
-}
-
-
-uint8_t busy_indicator_column;
-
-void filemanager_busy_indicator_column(uint8_t c)
-{
-    busy_indicator_column = c;
-}
-
-void filemanager_busy_indicator()
-{
-    static char busy = 1;
-
-    if (busy == 1) {
-        busy = 0;
-        cputsxy(FILES_WIDTH - 3, busy_indicator_column, "[*]");
-    } else {
-        busy = 1;
-        cputsxy(FILES_WIDTH - 3, busy_indicator_column, "[+]");
-    }
-}
-
-void filemanager_done_indicator()
-{
-    chlinexy(FILES_WIDTH - 3, busy_indicator_column, 3);
 }
 
 
@@ -477,27 +519,56 @@ finish:
 }
 
 
-uint8_t filemanager_identify_file(char* filename, uint8_t device)
+char* identity_to_text(uint8_t ident)
+{
+    switch (ident) {
+        case 0x01:
+             return "classic save game";
+        case 0x02:
+             return "classic best times";
+        case 0x03:
+             return "classic castle";
+        case 0x12:
+             return "remastered best times";
+         case 0x13:
+             return "remastered castle";
+        default:
+            return "unknown file";
+    }
+}
+
+
+uint8_t filemanager_identify_file(directory_entry_t* entry, uint8_t device)
 {
     uint8_t retval;
     uint16_t address;
+    bool protected;
+    char* filename = entry->name;
     
     // $00: unknown file (no codc file)
     // $01: classic save game: *, $7800
-    // $02: classic best times file: y, $
-    // $03: classic castle: z*, $7800
+    // $02: classic best times file: y, $b800
+    // $03: classic castle: z*, $7800, protected, do not copy
     // $11: (none)
     // $12: remastered best times file: Y*, $6400
     // $13: remastered castle; Z*, $7800
   
     retval = filemanager_get_startaddress(filename, device, &address);
-    if (retval != 0) return 0;
+    if (retval != 0) return 0xff;
     
-    if (filename[0] == 'y' && address == 0x6400) return 0x02; // ### address
-    if (filename[0] == 'z' && address == 0x7800) return 0x03;
-    if (filename[0] == 'Z' && address == 0x6400) return 0x13;
-    if (filename[0] == 'Y' && address == 0x6400) return 0x03;
-    if (address == 0x7800) return 0x01; // cannot make another asymption
+    protected = (entry->flags & 0x80) == 0x80;
+    
+    // remastered files
+    if (filename[0] == 'z' && address == 0x7800 && !protected) return 0x13;
+    if (filename[0] == 0x7a && address == 0x7800) return 0x13;
+    if (filename[0] == 0x79 && address == 0x6400) return 0x12;
+    if (filename[0] == 'y' && address == 0x6400) return 0x12;
+        
+    // classic files
+    if (filename[0] == 'z' && address == 0x7800 && protected) return 0x03;
+    if (filename[0] == 'y' && address == 0xb800) return 0x02;
+    if (filename[0] != 0x7a && filename[0] != 'z' && address == 0x7800 && !protected) return 0x01; // not further idenditficytions possible
+    
     return 0;
 }
 
@@ -549,7 +620,7 @@ uint8_t next_item(directory_entry_t* directory, uint16_t index, uint16_t step)
 
 uint8_t previous_item(uint16_t index, uint16_t step)
 {
-    if (step >= index+1) return 1;
+    if (step >= index) return 1;
     index -= step;
     return index;
 }
@@ -577,11 +648,14 @@ void draw_help()
     cputsxy(FILES_WIDTH+2, 9, "D: del file");
     cputsxy(FILES_WIDTH+2,10, "   from  ");
 
-    cputsxy(FILES_WIDTH+2,12, "A: copy all");
-    cputsxy(FILES_WIDTH+2,13, "   r/w files");
-    cputsxy(FILES_WIDTH+2,14, "   to  ");
+    cputsxy(FILES_WIDTH+2,12, "I: identify");
+    cputsxy(FILES_WIDTH+2,13, "   on  ");
+
+    cputsxy(FILES_WIDTH+2,15, "A: copy all");
+    cputsxy(FILES_WIDTH+2,16, "   r/w files");
+    cputsxy(FILES_WIDTH+2,17, "   to  ");
     
-    cputsxy(FILES_WIDTH+2,16, " : back"); cputcxy(FILES_WIDTH+2,16, 0x5f);
+    cputsxy(FILES_WIDTH+2,19, " : back"); cputcxy(FILES_WIDTH+2,19, 0x5f);
 
 }
 
@@ -591,15 +665,17 @@ void update_help(uint8_t focus)
         //                  01234567890123456789
         cputsxy(FILES_WIDTH+2, 7, "   to drive");
         cputsxy(FILES_WIDTH+2,10, "   from efs  ");
-        cputsxy(FILES_WIDTH+2,14, "   to drive ");
-        cputsxy(FILES_WIDTH+2,13, "   r/w files");
+        cputsxy(FILES_WIDTH+2,13, "   on efs  ");
+        cputsxy(FILES_WIDTH+2,16, "   r/w files");
+        cputsxy(FILES_WIDTH+2,17, "   to drive ");
 
     } else if (focus == 2) {
         //                  01234567890123456789
         cputsxy(FILES_WIDTH+2, 7, "   to efs  ");
         cputsxy(FILES_WIDTH+2,10, "   from drive");
-        cputsxy(FILES_WIDTH+2,14, "   to efs  ");
-        cputsxy(FILES_WIDTH+2,13, "   files    ");
+        cputsxy(FILES_WIDTH+2,13, "   on drive ");
+        cputsxy(FILES_WIDTH+2,16, "   files    ");
+        cputsxy(FILES_WIDTH+2,17, "   to efs  ");
 
     }
 }
@@ -716,6 +792,7 @@ void draw_status(uint8_t y, uint8_t height, directory_entry_t* directory, uint8_
     draw_editor_listdisplay_footer(y, height, line, focus);
 }
 
+
 void clear_result()
 {
     cclearxy(0, 24, 40);
@@ -767,6 +844,12 @@ void draw_result(uint8_t dstdevice, uint8_t srcdevice, uint16_t combined)
     
 }
 
+void draw_process(char* filename, char* process)
+{
+    gotoxy(1,24);
+    cprintf("%s %s", process, filename);
+}
+
 
 void clear_listcontent(uint8_t y, uint8_t height)
 {
@@ -777,7 +860,7 @@ void clear_listcontent(uint8_t y, uint8_t height)
     }
 }
 
-void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, uint16_t startindex)
+/*void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, uint16_t startindex)
 {
     uint16_t i;
     //char* content;
@@ -796,48 +879,75 @@ void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, u
             //cputsxy(1, y+1+i, content);  // ### start x, start y
             cclearxy(1, y+1+i, FILES_WIDTH);
             gotoxy(1, y+1+i); cprintf("%4d", entry->size);
-            cputsxy(6, y+1+i, entry->name);
-            gotoxy(22, y+1+i); cprintf("[%2x]", entry->flags);
+            cputsxy(6, y+1+i, entry->name);            
+            //gotoxy(22, y+1+i); cprintf("[%2x]", entry->flags);
+            if (entry->flags & 0x80) cputcxy(22, y+1+i, '>');
+            cputsxy(23, y+1+i, type_to_text(entry->flags));
         } else {
             cclearxy(1, y+1+i, FILES_WIDTH);
         }
     }
+}*/
+
+void draw_listcontent_line(uint8_t y, directory_entry_t* entry, bool highlight)
+{
+//    uint8_t n;
+    
+    if (highlight) revers(1);
+    if (entry != NULL) {
+        cclearxy(1, y, FILES_WIDTH);
+        gotoxy(1, y); cprintf("%1d", entry->size);
+        cputsxy(6, y, entry->name);
+//        n = strlen(entry->name);
+//        cclearxy(1, 6+n, 19 - n);
+        if (entry->flags & 0x80) cputcxy(22, y, '>'); //else cputcxy(22, y, ' ');
+        cputsxy(23, y, type_to_text(entry->flags));
+    } else {
+        cclearxy(1, y, FILES_WIDTH);
+    }
+    revers(0);
 }
 
-
-/*void draw_editor_listcontent(directory_entry_t* directory, uint16_t index)
+void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, uint16_t index, uint16_t* page)
 {
-    static uint16_t index_offset = 0;
-    uint16_t i, pos, n;
+    uint16_t index_offset = *page;
+    uint16_t i, pos;
     uint16_t max = get_index_max(directory);
-    char* content;
+    //uint16_t skip = 1;
 
     // start offset
-    if (index >= index_offset+LIST_HEIGHT) index_offset += index - (index_offset+LIST_HEIGHT) + 1;
+    if (index+1 >= index_offset+height) {
+        index_offset += index - (index_offset + height) + 1;
+        if (index_offset+height >= max) index_offset = max - height + 1;
+    }
     if (index < index_offset) {
-        if (index_offset - index >= index_offset) index_offset = 0;
-        else index_offset -= index_offset - index;
+        if (index_offset <= height) index_offset = 1;
+        else index_offset -= index_offset - index; 
     }
-    for (i=0; i<LIST_HEIGHT; i++) {
-        if (i+index_offset < max) {
+    for (i=0; i<height; i++) {
+        if (i+index_offset <= max) {
             pos = i+index_offset;
-            content = get_index_text(directory, pos);
-            if (index == pos) revers(1); else revers(0);
-            textcolor(COLOR_WHITE);
-            gotoxy(1,1+i);
-            n = cprintf("%s", content);
+            //content = get_index_text(directory, pos);
+//            if (index == pos) revers(1); else revers(0);
+            //textcolor(COLOR_WHITE);
+            draw_listcontent_line(y+i+1, &directory[pos], (index == pos));
+            //gotoxy(1,y+1+i);
+            //n = cprintf("%s", content);
         } else {
-            n = 0;
+        //    n = 0;
+            draw_listcontent_line(y+i+1, NULL, false);
         }
-        cclearxy(1+n, 1+i, 38-n);
-        textcolor(COLOR_GRAY2);
-        revers(0);
+//        cclearxy(1+n, 1+i, 38-n);
+//        textcolor(COLOR_GRAY2);
+//        revers(0);
     }
+    
+    *page = index_offset;
 
-    if (index_offset > 0) cputcxy(39, 2, 0xf1); else cputcxy(39, 2, 0xdd);
-    if (index_offset+LIST_HEIGHT < max) cputcxy(39, 1+LIST_HEIGHT-2, 0xf2); else cputcxy(39, 1+LIST_HEIGHT-2, 0xdd);
+//    if (index_offset > 0) cputcxy(FILES_WIDTH+1, y+2, 0xf1); else cputcxy(FILES_WIDTH+1, y+2, 0xdd);
+//    if (index_offset+height < max) cputcxy(FILES_WIDTH+1, y+1+height-2, 0xf2); else cputcxy(FILES_WIDTH+1, y+1+height-2, 0xdd);
 
-}*/
+}
 
 
 uint8_t check_for_device(directory_entry_t* directory, uint8_t device, bool focus)
@@ -863,6 +973,30 @@ uint8_t check_for_device(directory_entry_t* directory, uint8_t device, bool focu
     return 2;
 }
 
+
+void identify_single_file(directory_entry_t* directory, uint16_t index, uint8_t device)
+{
+    directory_entry_t* entry;
+    uint8_t type;
+    char* text;
+    
+    entry = get_index_entry(directory, index);
+    type = filemanager_identify_file(entry, device);
+    
+    text = identity_to_text(type);
+
+    gotoxy(1,24);
+    cprintf("%s: %s", entry->name, text);
+
+    // $00: unknown file (no codc file)
+    // $01: classic save game: *, $7800
+    // $02: classic best times file: y, $
+    // $03: classic castle: z*, $7800
+    // $11: (none)
+    // $12: remastered best times file: Y*, $6400
+    // $13: remastered castle; Z*, $7800    
+}
+
 uint8_t copy_single_file(uint8_t dstdevice, directory_entry_t* directory, uint16_t index, uint8_t srcdevice)
 {
     directory_entry_t* entry;
@@ -870,6 +1004,8 @@ uint8_t copy_single_file(uint8_t dstdevice, directory_entry_t* directory, uint16
         
     entry = get_index_entry(directory, index);
     if (entry == 0) return 0xff;
+
+    draw_process(entry->name, "copying");
     
     combined = copy_file(dstdevice, entry->name, srcdevice);
     draw_result(dstdevice, srcdevice, combined);
@@ -877,12 +1013,13 @@ uint8_t copy_single_file(uint8_t dstdevice, directory_entry_t* directory, uint16
 
 
 
-void savegame_menu(void)
+void main(void)
 {
     directory_entry_t* directory_efs;
     directory_entry_t* directory_cbm;
     uint8_t device, repaint;
-    uint16_t index;
+    uint16_t index_efs, index_cbm;
+    uint16_t page_efs, page_cbm;
     uint8_t retval, focus;
     uint16_t position;
 
@@ -891,7 +1028,8 @@ void savegame_menu(void)
     textcolor(COLOR_GRAY2);
     repaint = 1;
     position = 1;
-    index = 1;
+    index_efs = 1; page_efs = 1;
+    index_cbm = 1; page_cbm = 1;
     device = 0;
     focus = 1;
     
@@ -940,10 +1078,12 @@ void savegame_menu(void)
             }
         
         
-            if (repaint & 0x01) draw_listcontent(EFS_POSITION, FILES_HEIGHT, directory_efs, index);
-            if (repaint & 0x02) draw_listcontent(CBM_POSITION, FILES_HEIGHT, directory_cbm, 1);
+            if (repaint & 0x01) draw_listcontent(EFS_POSITION, FILES_HEIGHT, directory_efs, index_efs, &page_efs);
+            if (repaint & 0x02) draw_listcontent(CBM_POSITION, FILES_HEIGHT, directory_cbm, index_cbm, &page_cbm);
             repaint = 0;
         }
+        
+        //gotoxy(1,24); cprintf("i=%d p=%d", index_efs, page_efs);
 
         retval = cgetc();
         
@@ -951,22 +1091,44 @@ void savegame_menu(void)
         
         switch (retval) {
             case 0x5f: // back arrow
+                // ### call menu ###
                 return;
 
             case 0x11: // down
-                index = next_item(directory_efs, index, 1);
-                repaint = 1;
+                if (focus == 1) {
+                    index_efs = next_item(directory_efs, index_efs, 1);
+                    repaint = 0x01;
+                } else { // focus == 2
+                    index_cbm = next_item(directory_cbm, index_cbm, 1);
+                    repaint = 0x02;
+                }
                 break;
             case 0x1d: // right
-                index = next_item(directory_efs, index, 10);
-                repaint = 1;
+                if (focus == 1) {
+                    index_efs = next_item(directory_efs, index_efs, FILES_HEIGHT);
+                    repaint = 0x01;
+                } else { // focus == 2
+                    index_cbm = next_item(directory_cbm, index_cbm, FILES_HEIGHT);
+                    repaint = 0x02;
+                }
                 break;
             case 0x91: // up
-                index = previous_item(index, 1);
-                repaint = 1;
+                if (focus == 1) {
+                    index_efs = previous_item(index_efs, 1);
+                    repaint = 0x01;
+                } else { // focus == 2
+                    index_cbm = previous_item(index_cbm, 1);
+                    repaint = 0x02;
+                }
                 break;
             case 0x9d: // left
-                index = previous_item(index, 10);
+                if (focus == 1) {
+                    index_efs = previous_item(index_efs, FILES_HEIGHT);
+                    repaint = 0x01;
+                } else { // focus == 2
+                    index_cbm = previous_item(index_cbm, FILES_HEIGHT);
+                    repaint = 0x02;
+                }
                 repaint = 1;
                 break;
 
@@ -991,20 +1153,28 @@ void savegame_menu(void)
                 repaint = check_for_device(directory_cbm, device, (focus==2));
                 break;
             case 0x88: // F7 reload dir
-                if (device == 0) break;
+                if (device == 0) device = 8;
                 repaint = check_for_device(directory_cbm, device, (focus==2));
+                break;
+            case 'i': // identify
+                if (focus == 1) {
+                    identify_single_file(directory_efs, index_efs, 0);
+                } else {
+                    if (device == 0) break;
+                    identify_single_file(directory_cbm, index_cbm, device);
+                }
                 break;
 
             case 'c': // copy single file
                 if (device == 0) break;
                 if (focus == 1) {
                     // copy to drv
-                    copy_single_file(device, directory_efs, index, 0);
+                    copy_single_file(device, directory_efs, index_efs, 0);
                     // ### rebuild dir directory
                     repaint = 0x22;
                 } else {
                     // copy to efs
-                    copy_single_file(0, directory_cbm, index, device);
+                    copy_single_file(0, directory_cbm, index_cbm, device);
                     // ### rebuild efs directory
                     repaint = 0x11;
                 }

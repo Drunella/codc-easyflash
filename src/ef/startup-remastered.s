@@ -5,11 +5,11 @@
 
 .include "easyflash.i"
 
-.export body_startup_remastered
+.export startup_remastered_execute
 .import WrapperStart
 
 
-.segment "GAMESTART"
+.segment "GAMESTART_BODY"
 
 ; -------------------------------------------------------------------------------------------------------------- ;
 ; compiler settings
@@ -57,7 +57,7 @@ PicColorsMC         = PicStart      + $1f40         ; $1f40 - $2327 - koala pict
 PicColorsRam        = PicColorsMC   + $03e8         ; $2328 - $270f - koala picture color ram 
 PicColorsBkgr       = PicColorsRam  + $03e8         ; $2710         - koala picture color background
 ; -------------------------------------------------------------------------------------------------------------- ;
-body_startup_remastered:
+startup_remastered_execute:
 InfoText:           lda #<ScreenText                ; 
                     sta PtrTxtScreenLo              ; 
                     lda #>ScreenText                ; 

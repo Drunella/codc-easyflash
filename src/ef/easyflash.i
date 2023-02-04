@@ -15,6 +15,13 @@
 ; ----------------------------------------------------------------------------
 
 
+; startup
+GAME_startup_menu = $c000
+GAME_startup_manager = $c003
+GAME_startup_game_original = $c006
+GAME_startup_game_remastered = $c009
+
+
 ; io rom
 EF_ROM_START = $8000
 EF_ROM_BANK  = 0

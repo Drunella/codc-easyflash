@@ -26,8 +26,7 @@
 .segment "CONFIG"
     ef_name:
         .byte $65, $66, $2d, $6e, $41, $4d, $45, $3a
-        .byte "castle dr creep"
-        .res 1, $00 
+        .byte "castles dr creep"
 
     efs_config:
         .byte "libefs"

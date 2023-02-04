@@ -69,7 +69,8 @@ mrproper:
 # easyflash
 
 EF_LOADER_FILES=build/ef/loader.o
-EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/utils.o build/ef/startup.o build/ef/startup-remastered.o build/ef/io-remastered.o build/ef/startup-original.o build/ef/filemanager.o
+EF_MENU_FILES=build/ef/menu.o build/ef/util.o build/ef/utils.o build/ef/startup.o build/ef/startup-remastered.o build/ef/io-remastered.o build/ef/startup-original.o
+EF_MANAGER_FILES=build/ef/filemanager.o build/ef/util.o build/ef/utils.o
 
 # cartridge binary
 build/ef/codc-easyflash.bin: build/ef/init.bin src/ef/lib-efs.prg src/ef/eapi-am29f040.prg build/ef/loader.bin build/ef/config.bin build/ef/data.dir.prg build/ef/data.files.prg build/ef/data-rw.dir.prg build/ef/data-rw.files.prg
@@ -108,8 +109,13 @@ build/ef/menu.prg: $(EF_MENU_FILES)
 	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/menu.map -Ln ./build/ef/menu.lst -o $@ -C src/ef/menu.cfg c64.lib $(EF_MENU_FILES)
 	echo "./build/ef/menu.prg, MENU, 1, 1" >> ./build/ef/files.list
 
+# manager.prg
+build/ef/manager.prg: $(EF_MANAGER_FILES)
+	$(LD65) $(LD65FLAGS) -vm -m ./build/ef/manager.map -Ln ./build/ef/manager.lst -o $@ -C src/ef/manager.cfg c64.lib $(EF_MANAGER_FILES)
+	echo "./build/ef/manager.prg, MANAGER, 1, 1" >> ./build/ef/files.list
+
 # build efs
-build/ef/data.dir.prg build/ef/data.files.prg: build/ef/files.list ./build/ef/patches.done build/ef/patches3.done build/ef/menu.prg
+build/ef/data.dir.prg build/ef/data.files.prg: build/ef/files.list ./build/ef/patches.done build/ef/patches3.done build/ef/menu.prg build/ef/manager.prg
 	tools/mkefs.py -v -s 507904 -o 0 -m lh -b 1 -n data -l ./build/ef/files.list -f . -d ./build/ef
 
 # build rw efs

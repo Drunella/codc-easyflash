@@ -17,17 +17,8 @@
 
 .feature c_comments 
 
-
 .include "easyflash.i"
 
-;.import eapi_buffer
-;.import __EAPI_START__
-
-;.import __LOADER_LOAD__
-;.import __LOADER_RUN__
-;.import __LOADER_SIZE__
-;.import __EAPI_START__
-;.import _load_eapi
 
 
 .segment "LOADER_CALL"
