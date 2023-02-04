@@ -22,6 +22,8 @@
 .import popa 
 .import popax
 .importzp sreg
+.importzp cvlinechar
+.importzp chlinechar
 
 .import _cputc
 
@@ -45,6 +47,8 @@
 .export _cbm_device_get_status
 .export _cbm_device_ispresent
 
+.export _C_cvlinechar
+.export _C_chlinechar
 .export _SYS_get_system
 .export _TIMER_measure
 .export _TIMER_reset
@@ -73,6 +77,7 @@
 
 
 .segment "CODE"
+
 
     ; void __fastcall__ EFS_init_eapi(void);
     _EFS_init_eapi:
@@ -513,6 +518,20 @@
 
 ; ------------------------------------------------------------------------
 ; sys helper
+
+    ; uint8_t __fastcall__ C_cvlinechar()
+    _C_cvlinechar:
+        lda #cvlinechar + $20
+        ldx #$00
+        rts
+
+
+    ; uint8_t __fastcall__ C_chlinechar()
+    _C_chlinechar:
+        lda #chlinechar + $20
+        ldx #$00
+        rts
+
 
     ; uint8_t __fastcall__ _SYS_get_system()
     _SYS_get_system:
