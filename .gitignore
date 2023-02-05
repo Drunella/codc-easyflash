@@ -2,3 +2,5 @@
 build/*
 disks/*
 test/*
+dumps/*
+extern/*
