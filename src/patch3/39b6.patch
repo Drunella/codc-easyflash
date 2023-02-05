@@ -6,4 +6,4 @@ filename = 3object.prg
 offset   = -0x07fe
 address  = 0x39b6
 original = a959
-new      = a979
+new      = a9d9

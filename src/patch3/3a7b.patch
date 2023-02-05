@@ -1,5 +1,5 @@
 type = symaddr
-; replace jmpt or jsr address with new address
+; replace jmp or jsr address with new address
 ; offset: startaddress - 2 bytes
 ; $3a7b  4c d8 ff => (save)
 filename  = 3object.prg

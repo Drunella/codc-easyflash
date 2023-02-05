@@ -122,14 +122,14 @@ uint8_t filemanager_identify_file(directory_entry_t* entry, uint8_t device)
 
     // remastered files
     if (filename[0] == 'z' && address == 0x7800 && !protected) return 0x13;
-    if (filename[0] == 0x7a && address == 0x7800) return 0x13;
-    if (filename[0] == 0x79 && address == 0x6400) return 0x12;
+    if (filename[0] == 0xda && address == 0x7800) return 0x13;
+    if (filename[0] == 0xd9 && address == 0x6400) return 0x12;
     if (filename[0] == 'y' && address == 0x6400) return 0x12;
 
     // classic files
     if (filename[0] == 'z' && address == 0x7800 && protected) return 0x03;
     if (filename[0] == 'y' && address == 0xb800) return 0x02;
-    if (filename[0] != 0x7a && filename[0] != 'z' && address == 0x7800 && !protected) return 0x01; // not further idenditficytions possible
+    if (filename[0] != 0xda && filename[0] != 'z' && address == 0x7800 && !protected) return 0x01; // not further idenditficytions possible
 
     return 0;
 }
@@ -164,7 +164,7 @@ uint16_t copy_file(uint8_t dstdevice, directory_entry_t* srcentry, uint8_t srcde
     }
     if (dstdevice > 0 && (type == 0x12 || type == 0x13)) {
         dstname[3] = tolower(dstname[3]);
-        gotoxy(1,24); cprintf("conv: %d, %s", dstname[3], dstname);
+        //gotoxy(1,24); cprintf("conv: %d, %s", dstname[3], dstname);
     }
 
     // open srcdevice
@@ -287,6 +287,9 @@ directory_entry_t* filemanager_exit(directory_entry_t* directory)
 
 uint8_t text_to_type(char* type)
 {
+    // SEQ, USR, REL, DEL, CBM, DIR
+    // crt, ocn, xba
+
     uint8_t len;
     uint8_t flags;
     char* typeonly;
@@ -324,10 +327,6 @@ uint8_t text_to_type(char* type)
     } else if (strncmp(typeonly, "xba", 3) == 0) {
         flags |= 0x13;    
     } 
-    // ### check for other types
-    // SEQ, USR, REL, DEL, CBM, DIR
-    // crt, ocn, xba
-    // *, +, -
     return flags;
 }
 
@@ -1136,9 +1135,12 @@ void main(void)
                 draw_status(CBM_POSITION, FILES_HEIGHT, directory_cbm, device, retval, (focus==2));
             }
         
-        
-            if (repaint & 0x01) draw_listcontent(EFS_POSITION, FILES_HEIGHT, directory_efs, index_efs, &page_efs, (focus==1));
-            if (repaint & 0x02) draw_listcontent(CBM_POSITION, FILES_HEIGHT, directory_cbm, index_cbm, &page_cbm, (focus==2));
+            if (repaint & 0x01) {
+                draw_listcontent(EFS_POSITION, FILES_HEIGHT, directory_efs, index_efs, &page_efs, (focus==1));
+            }
+            if (repaint & 0x02) {
+                draw_listcontent(CBM_POSITION, FILES_HEIGHT, directory_cbm, index_cbm, &page_cbm, (focus==2));
+            }
             repaint = 0;
         }
         
@@ -1237,12 +1239,12 @@ void main(void)
             case 'd': // delete
                 if (focus == 1) {
                     delete_single_file(directory_efs, index_efs, 0);
-                    if (index_efs > 0) index_efs--;
+                    if (index_efs > 1) index_efs--;
                     repaint = 0x11;
                 } else {
                     if (device == 0) break;
                     delete_single_file(directory_cbm, index_cbm, device);
-                    if (index_cbm > 0) index_cbm--;
+                    if (index_cbm > 1) index_cbm--;
                     repaint = 0x22;
                 }
                 break;

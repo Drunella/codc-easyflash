@@ -25,7 +25,7 @@ EXTCOL            = $D020     ; Border Color
 BGCOL0            = $D021     ; Background Color 0 (all text modes, sprite graphics, and multicolor bitmap graphics)
 
 CI2PRA            = $DD00     ; Data Port Register A
-VIC_MemBankClr    = $fc       ; ######..
+VIC_MemBankClr    = $fc       ; 
 C2DDRA            = $DD02     ; Data Direction Register A
 
 ; ------------------------------------------------------------------------------------------------------------- ;
@@ -124,7 +124,7 @@ TextRowOut:          lda (PtrFrom),y                 ;
                     iny                             ; 
                     jmp TextRowOut                  ; 
                     
-LastCharOut:        and #$7f                        ; .####### - normalize
+LastCharOut:        and #$7f                        ;
                     sta (PtrTo),y                   ; 
                     
                     iny                             ; length last text row
@@ -140,7 +140,7 @@ LastCharOut:        and #$7f                        ; .####### - normalize
 LoadPic:            lda #YELLOW                     ; 
                     sta EXTCOL                      ; VIC($D020) Border Color
                     sta BGCOL0                      ; VIC($D021) Background Color 0
-                    lda #$16                        ; ...#.##. - 01=screen($0400-$07e7) 03=char($1800-$1fff)
+                    lda #$16                        ; ...x.xx. - 01=screen($0400-$07e7) 03=char($1800-$1fff)
                     sta VMCSB                       ; VIC($D018) VIC Chip Memory Control
                     
                     lda #$02                        ; 
@@ -224,20 +224,20 @@ CopyPicColorsRam:   lda (PtrFrom),y                 ;
                     bne CopyPicColorsRam            ; 
                     
 ShowPic:            lda C2DDRA                      ; CIA2($DD02) Data Dir A
-                    ora #$03                        ; ......## - 1=output
+                    ora #$03                        ; ......xx - 1=output
                     sta C2DDRA                      ; CIA2($DD02) Data Dir A
                     
                     lda CI2PRA                      ; CIA2($DD00) Data Port A - Bits 0-1 = VIC mem bank
-                    and #VIC_MemBankClr             ; ######.. 00 = VIC_MemBank_3 - $c000-$ffff
+                    and #VIC_MemBankClr             ; xxxxxx.. 00 = VIC_MemBank_3 - $c000-$ffff
                     sta CI2PRA                      ; CIA2($DD00) Data Port A - Bits 0-1 = VIC mem bank
                     
-                    lda #$3b                        ; ..###.## - 25rows / screen enab / bitmap mode
+                    lda #$3b                        ; ..xxx.xx - 25rows / screen enab / bitmap mode
                     sta SCROLY                      ; VIC($D011) VIC Control Register 1 (and Vertical Fine Scrolling)
                     
-                    lda #$18                        ; ...##... - 40 cols / multi color mode
+                    lda #$18                        ; ...xx... - 40 cols / multi color mode
                     sta SCROLX                      ; VIC($D016) VIC Control Register 2 (and Horizontal Fine Scrolling)
                     
-                    lda #$38                        ; ..## #.. . - color $0c00-$0fe7  screen $2000-$3fff
+                    lda #$38                        ; ..xx x.. . - color $0c00-$0fe7  screen $2000-$3fff
                     sta VMCSB                       ; VIC($D018) VIC Chip Memory Control
                     
                     lda #YELLOW                     ; 

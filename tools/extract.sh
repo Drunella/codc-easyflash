@@ -116,10 +116,10 @@ if [ "$mode" -eq "3" ] ; then
             echo "$filename, 3${destname:3}, 1, 0" >> "$fileslist"
         fi
         if [ "${basename:2:1}" = "z" ] ; then
-            echo "$filename, z${destname:3}, 1, 0" >> "$fileslist"
+            echo -e "$filename, \xc3\x9a${destname:3}, 1, 0" >> "$fileslist"
         fi
         if [ "${basename:0:1}" = "y" ] ; then
-            echo "$filename, y${destname:1}, 1, 0" >> "$fileslistrw"
+            echo -e "$filename, \xc3\x99${destname:1}, 1, 0" >> "$fileslistrw"
         fi
         
     done
