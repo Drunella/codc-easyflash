@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cbm.h>
+#include <ctype.h>
 
 #include "util.h"
 
@@ -63,9 +64,80 @@ void filemanager_clear_indicator()
 }
 
 
-uint16_t copy_file(uint8_t dstdevice, char* srcname, uint8_t srcdevice)
+uint8_t filemanager_get_startaddress(char* filename, uint8_t device, uint16_t* address)
 {
-    uint8_t n, srcretval, dstretval, value, status;
+    uint8_t retval, value;
+
+    if (device > 0) {
+        // iec device
+        cbm_k_setlfs(1, device, 0);
+        cbm_k_setnam(filename);
+        retval = cbm_k_open();
+        if (retval != 0) goto finish;
+        retval = cbm_k_chkin(1);
+
+        *address = cbm_k_getin();
+        *address += ((uint16_t)cbm_k_getin()) * 256;
+
+    } else {
+        EFS_setnam_wrapper(filename, strlen(filename));
+        EFS_setlfs_wrapper(0);  // do not relocate
+        retval = EFS_open_wrapper(0);  // open for read
+        if (retval != 0) goto finish;
+
+        retval = EFS_chrin_wrapper(&value);
+        *address = (uint16_t)value;
+        retval = EFS_chrin_wrapper(&value);
+        *address += ((uint16_t)value) * 256;
+    }
+
+finish:
+    if (device > 0) {
+        cbm_k_close(1);
+    } else {
+        EFS_close_wrapper();
+    }
+    return retval;
+}
+
+uint8_t filemanager_identify_file(directory_entry_t* entry, uint8_t device)
+{
+    uint8_t retval;
+    uint16_t address;
+    bool protected;
+    char* filename = entry->name;
+
+    // $00: unknown file (no codc file)
+    // $01: classic save game: *, $7800
+    // $02: classic best times file: y, $b800
+    // $03: classic castle: z*, $7800, protected, do not copy
+    // $11: (none)
+    // $12: remastered best times file: Y*, $6400
+    // $13: remastered castle; Z*, $7800
+
+    retval = filemanager_get_startaddress(filename, device, &address);
+    if (retval != 0) return 0xff;
+
+    protected = (entry->flags & 0x80) == 0x80;
+
+    // remastered files
+    if (filename[0] == 'z' && address == 0x7800 && !protected) return 0x13;
+    if (filename[0] == 0x7a && address == 0x7800) return 0x13;
+    if (filename[0] == 0x79 && address == 0x6400) return 0x12;
+    if (filename[0] == 'y' && address == 0x6400) return 0x12;
+
+    // classic files
+    if (filename[0] == 'z' && address == 0x7800 && protected) return 0x03;
+    if (filename[0] == 'y' && address == 0xb800) return 0x02;
+    if (filename[0] != 0x7a && filename[0] != 'z' && address == 0x7800 && !protected) return 0x01; // not further idenditficytions possible
+
+    return 0;
+}
+
+
+uint16_t copy_file(uint8_t dstdevice, directory_entry_t* srcentry, uint8_t srcdevice)
+{
+    uint8_t n, srcretval, dstretval, value, status, type;
     char dstname[25];
     uint16_t counter;
 
@@ -76,25 +148,36 @@ uint16_t copy_file(uint8_t dstdevice, char* srcname, uint8_t srcdevice)
 
     if (dstdevice == srcdevice) return 0xffff;
     if (dstdevice > 0 && srcdevice > 0) return 0xffff;
+
     if (dstdevice == 0) {
-        n = sprintf(dstname, "@0:%s", srcname);
+        n = sprintf(dstname, "@0:%s", srcentry->name);
         dstname[n] = 0;
     } else {
-        n = sprintf(dstname, "@0:%s,p,w", srcname);
+        n = sprintf(dstname, "@0:%s,p,w", srcentry->name);
         dstname[n] = 0;
+    }
+
+    // name conversion
+    type = filemanager_identify_file(srcentry, srcdevice);
+    if (dstdevice == 0 && (type == 0x12 || type == 0x13)) {
+        dstname[3] = toupper(dstname[3]);
+    }
+    if (dstdevice > 0 && (type == 0x12 || type == 0x13)) {
+        dstname[3] = tolower(dstname[3]);
+        gotoxy(1,24); cprintf("conv: %d, %s", dstname[3], dstname);
     }
 
     // open srcdevice
     if (srcdevice > 0) {
         // iec device
         cbm_k_setlfs(2, srcdevice, 2);
-        cbm_k_setnam(srcname);
+        cbm_k_setnam(srcentry->name);
         srcretval = cbm_k_open();
         if (srcretval != 0) goto finish;
         srcretval = cbm_k_chkin(2);
     } else {
         // efs
-        EFS_setnam_wrapper(srcname, strlen(srcname));
+        EFS_setnam_wrapper(srcentry->name, strlen(srcentry->name));
         EFS_setlfs_wrapper(0); // do not relocate
         srcretval = EFS_open_wrapper(0);
     }
@@ -119,8 +202,8 @@ uint16_t copy_file(uint8_t dstdevice, char* srcname, uint8_t srcdevice)
     if (srcdevice > 0 && dstdevice == 0) {
         // copy to efs
         while (true) {
-            value = cbm_k_getin();
             status = cbm_k_readst();
+            value = cbm_k_getin();
             dstretval = EFS_chrout_wrapper(value);
             if (status == 0x40) break;
             if (dstretval != 0) break;
@@ -482,43 +565,6 @@ finish:
 }
 
 
-uint8_t filemanager_get_startaddress(char* filename, uint8_t device, uint16_t* address)
-{
-    uint8_t retval, value;
-
-    if (device > 0) {
-        // iec device
-        cbm_k_setlfs(1, device, 0);
-        cbm_k_setnam(filename);
-        retval = cbm_k_open();
-        if (retval != 0) goto finish;
-        retval = cbm_k_chkin(1);
-        
-        *address = cbm_k_getin();
-        *address += ((uint16_t)cbm_k_getin()) * 256;
-    
-    } else {
-        EFS_setnam_wrapper(filename, strlen(filename));
-        EFS_setlfs_wrapper(0);  // do not relocate
-        retval = EFS_open_wrapper(0);  // open for read
-        if (retval != 0) goto finish;
-
-        retval = EFS_chrin_wrapper(&value);
-        *address = (uint16_t)value;
-        retval = EFS_chrin_wrapper(&value);
-        *address += ((uint16_t)value) * 256;
-    }
-
-finish:
-    if (device > 0) {
-        cbm_k_close(1);
-    } else {
-        EFS_close_wrapper();
-    }
-    return retval;
-}
-
-
 char* identity_to_text(uint8_t ident)
 {
     switch (ident) {
@@ -537,66 +583,6 @@ char* identity_to_text(uint8_t ident)
     }
 }
 
-
-uint8_t filemanager_identify_file(directory_entry_t* entry, uint8_t device)
-{
-    uint8_t retval;
-    uint16_t address;
-    bool protected;
-    char* filename = entry->name;
-    
-    // $00: unknown file (no codc file)
-    // $01: classic save game: *, $7800
-    // $02: classic best times file: y, $b800
-    // $03: classic castle: z*, $7800, protected, do not copy
-    // $11: (none)
-    // $12: remastered best times file: Y*, $6400
-    // $13: remastered castle; Z*, $7800
-  
-    retval = filemanager_get_startaddress(filename, device, &address);
-    if (retval != 0) return 0xff;
-    
-    protected = (entry->flags & 0x80) == 0x80;
-    
-    // remastered files
-    if (filename[0] == 'z' && address == 0x7800 && !protected) return 0x13;
-    if (filename[0] == 0x7a && address == 0x7800) return 0x13;
-    if (filename[0] == 0x79 && address == 0x6400) return 0x12;
-    if (filename[0] == 'y' && address == 0x6400) return 0x12;
-        
-    // classic files
-    if (filename[0] == 'z' && address == 0x7800 && protected) return 0x03;
-    if (filename[0] == 'y' && address == 0xb800) return 0x02;
-    if (filename[0] != 0x7a && filename[0] != 'z' && address == 0x7800 && !protected) return 0x01; // not further idenditficytions possible
-    
-    return 0;
-}
-
-
-/*char* get_index_text(directory_entry_t* directory, uint16_t index)
-{
-    static char itemline[30];
-    uint8_t n;
-    
-    itemline[0] = 0;
-    if (index > directory[0].size) return NULL;
-    
-    memset(itemline, 0x20, 30);
-    n = sprintf(itemline, "%4d", directory[index].size);
-    itemline[n] = 0x20;
-    memcpy(&itemline[5], directory[index].name, strlen(directory[index].name));
-    n = sprintf(&itemline[21], "[%02x]", directory[index].flags);
-    itemline[21+n] = 0;
-
-    return itemline;
-}
-
-
-char* get_index_filenametext(directory_entry_t* directory, uint16_t index)
-{
-    if (index > directory[0].size) return NULL;
-    return directory[index].name;
-}*/
 
 directory_entry_t* get_index_entry(directory_entry_t* directory, uint16_t index)
 {
@@ -654,8 +640,10 @@ void draw_help()
     cputsxy(FILES_WIDTH+2,15, "A: copy all");
     cputsxy(FILES_WIDTH+2,16, "   r/w files");
     cputsxy(FILES_WIDTH+2,17, "   to  ");
-    
-    cputsxy(FILES_WIDTH+2,19, " : back"); cputcxy(FILES_WIDTH+2,19, 0x5f);
+
+    cputsxy(FILES_WIDTH+2,19, "F: format efs");
+    cputsxy(FILES_WIDTH+2,20, "V: defragment");    
+    cputsxy(FILES_WIDTH+2,21, " : back"); cputcxy(FILES_WIDTH+2,21, 0x5f);
 
 }
 
@@ -680,7 +668,24 @@ void update_help(uint8_t focus)
     }
 }
 
-void draw_editor_listdisplay_header(uint8_t y, char* line, bool focus)
+bool draw_confirmation(char* content)
+{
+    char c;
+    uint8_t n;
+
+    cclearxy(0,24,40);
+    textcolor(COLOR_GRAY2);
+    n = strlen(content);
+    cputsxy(1,24, content);
+    cputsxy(2+n, 24, "Are you sure? ");
+    cursor(1);
+    c = cgetc();
+    cursor(0);
+    cclearxy(0,24,40);
+    return (c == 'y');
+}
+
+void draw_listdisplay_header(uint8_t y, char* line, bool focus)
 {
     if (focus) textcolor(COLOR_WHITE);
     else textcolor(COLOR_GRAY2);
@@ -692,7 +697,7 @@ void draw_editor_listdisplay_header(uint8_t y, char* line, bool focus)
     }
 }
 
-void draw_editor_listdisplay_footer(uint8_t y, uint8_t height, char* line,  bool focus)
+void draw_listdisplay_footer(uint8_t y, uint8_t height, char* line,  bool focus)
 {
     if (focus) textcolor(COLOR_WHITE);
     else textcolor(COLOR_GRAY2);
@@ -705,7 +710,7 @@ void draw_editor_listdisplay_footer(uint8_t y, uint8_t height, char* line,  bool
 
 }
 
-void draw_editor_listdisplay(uint8_t y, uint8_t height, char* headline, char* footerline, bool focus)
+void draw_listdisplay(uint8_t y, uint8_t height, char* headline, char* footerline, bool focus)
 {
     if (focus) textcolor(COLOR_WHITE);
     else textcolor(COLOR_GRAY2);
@@ -713,8 +718,8 @@ void draw_editor_listdisplay(uint8_t y, uint8_t height, char* headline, char* fo
     chlinexy(1, y+0, FILES_WIDTH); // top
     chlinexy(1, y+height+1, FILES_WIDTH);  // bottom
 
-    draw_editor_listdisplay_header(y, headline, focus);
-    draw_editor_listdisplay_footer(y, height, footerline, focus);
+    draw_listdisplay_header(y, headline, focus);
+    draw_listdisplay_footer(y, height, footerline, focus);
 
     if (focus) textcolor(COLOR_WHITE);
     else textcolor(COLOR_GRAY2);
@@ -729,7 +734,7 @@ void draw_editor_listdisplay(uint8_t y, uint8_t height, char* headline, char* fo
     textcolor(COLOR_GRAY2);  
 }
 
-void draw_editor_listfocus(uint8_t y, uint8_t height, bool focus)
+void draw_listfocus(uint8_t y, uint8_t height, bool focus)
 {
     uint8_t i;
     char c;
@@ -789,7 +794,7 @@ void draw_status(uint8_t y, uint8_t height, directory_entry_t* directory, uint8_
         snprintf(line, FILES_WIDTH-2, "%s", text);
     }
 
-    draw_editor_listdisplay_footer(y, height, line, focus);
+    draw_listdisplay_footer(y, height, line, focus);
 }
 
 
@@ -799,7 +804,33 @@ void clear_result()
 }
 
 
-void draw_result(uint8_t dstdevice, uint8_t srcdevice, uint16_t combined)
+void draw_result1(uint8_t device, uint8_t result)
+{
+    uint8_t retval;
+    uint8_t status;
+    char* text;
+
+    if (device > 0) {
+        cbm_device_get_status(device);
+        text = cbm_device_last_status();
+        status = cbm_k_readst();
+        retval = cbm_device_last_statuscode();
+    } else {
+        status = EFS_readst_wrapper();
+        text = get_error_text_efs(result, status);
+        if (status = 0x40 && retval == 0xff) retval = 0;
+    }
+
+    if (retval > 0) {
+        gotoxy(1,24);
+        cprintf("%s", text);
+        cclearxy(wherex(), 24, 40-wherex());
+    } else {
+        cclearxy(0, 24, 40);
+    }
+}
+
+void draw_result2(uint8_t dstdevice, uint8_t srcdevice, uint16_t combined)
 {
     uint8_t srcretval, dstretval;
     uint8_t status;
@@ -822,6 +853,8 @@ void draw_result(uint8_t dstdevice, uint8_t srcdevice, uint16_t combined)
     if (srcretval > 0) {
         gotoxy(1,24);
         cprintf("source: %s", text);
+        // clear rest of line
+        cclearxy(wherex(), 24, 40-wherex());
         return;
     }
     
@@ -839,8 +872,12 @@ void draw_result(uint8_t dstdevice, uint8_t srcdevice, uint16_t combined)
     if (dstretval > 0) {
         gotoxy(1,24);
         cprintf("dest: %s", text);
+        // clear rest of line
+        cclearxy(wherex(), 24, 40-wherex());
         return;
     }
+    
+    cclearxy(0, 24, 40);
     
 }
 
@@ -860,46 +897,13 @@ void clear_listcontent(uint8_t y, uint8_t height)
     }
 }
 
-/*void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, uint16_t startindex)
-{
-    uint16_t i;
-    //char* content;
-    directory_entry_t* entry;
-
-    // start offset
-//    if (index >= index_offset+LIST_HEIGHT) index_offset += index - (index_offset+LIST_HEIGHT) + 1;
-//    if (index < index_offset) {
-//        if (index_offset - index >= index_offset) index_offset = 0;
-//        else index_offset -= index_offset - index;
-//    }
-    for (i=0; i<height; i++) {
-        //content = get_index_text(directory, startindex + i);
-        entry = get_index_entry(directory, startindex + i);
-        if (entry != NULL) {
-            //cputsxy(1, y+1+i, content);  // ### start x, start y
-            cclearxy(1, y+1+i, FILES_WIDTH);
-            gotoxy(1, y+1+i); cprintf("%4d", entry->size);
-            cputsxy(6, y+1+i, entry->name);            
-            //gotoxy(22, y+1+i); cprintf("[%2x]", entry->flags);
-            if (entry->flags & 0x80) cputcxy(22, y+1+i, '>');
-            cputsxy(23, y+1+i, type_to_text(entry->flags));
-        } else {
-            cclearxy(1, y+1+i, FILES_WIDTH);
-        }
-    }
-}*/
-
 void draw_listcontent_line(uint8_t y, directory_entry_t* entry, bool highlight)
 {
-//    uint8_t n;
-    
     if (highlight) revers(1);
     if (entry != NULL) {
         cclearxy(1, y, FILES_WIDTH);
         gotoxy(1, y); cprintf("%1d", entry->size);
         cputsxy(6, y, entry->name);
-//        n = strlen(entry->name);
-//        cclearxy(1, 6+n, 19 - n);
         if (entry->flags & 0x80) cputcxy(22, y, '>'); //else cputcxy(22, y, ' ');
         cputsxy(23, y, type_to_text(entry->flags));
     } else {
@@ -908,7 +912,7 @@ void draw_listcontent_line(uint8_t y, directory_entry_t* entry, bool highlight)
     revers(0);
 }
 
-void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, uint16_t index, uint16_t* page)
+void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, uint16_t index, uint16_t* page, bool focus)
 {
     uint16_t index_offset = *page;
     uint16_t i, pos;
@@ -927,26 +931,16 @@ void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, u
     for (i=0; i<height; i++) {
         if (i+index_offset <= max) {
             pos = i+index_offset;
-            //content = get_index_text(directory, pos);
-//            if (index == pos) revers(1); else revers(0);
-            //textcolor(COLOR_WHITE);
-            draw_listcontent_line(y+i+1, &directory[pos], (index == pos));
-            //gotoxy(1,y+1+i);
-            //n = cprintf("%s", content);
+            draw_listcontent_line(y+i+1, &directory[pos], (index == pos && focus));
         } else {
-        //    n = 0;
             draw_listcontent_line(y+i+1, NULL, false);
         }
-//        cclearxy(1+n, 1+i, 38-n);
-//        textcolor(COLOR_GRAY2);
-//        revers(0);
     }
     
     *page = index_offset;
 
 //    if (index_offset > 0) cputcxy(FILES_WIDTH+1, y+2, 0xf1); else cputcxy(FILES_WIDTH+1, y+2, 0xdd);
 //    if (index_offset+height < max) cputcxy(FILES_WIDTH+1, y+1+height-2, 0xf2); else cputcxy(FILES_WIDTH+1, y+1+height-2, 0xdd);
-
 }
 
 
@@ -956,7 +950,7 @@ uint8_t check_for_device(directory_entry_t* directory, uint8_t device, bool focu
     char text[10];
 
     sprintf(text, "cbm #%d", device);
-    draw_editor_listdisplay_header(CBM_POSITION, text, focus);
+    draw_listdisplay_header(CBM_POSITION, text, focus);
     clear_listcontent(CBM_POSITION, FILES_HEIGHT);
 
     retval = cbm_device_ispresent(device);
@@ -967,7 +961,7 @@ uint8_t check_for_device(directory_entry_t* directory, uint8_t device, bool focu
 
     filemanager_busy_indicator_column(CBM_POSITION);
     retval = filemanager_get_directory(directory, device);
-    if (retval == 0) draw_editor_listdisplay_header(CBM_POSITION, get_headline(directory), focus);
+    if (retval == 0) draw_listdisplay_header(CBM_POSITION, get_headline(directory), focus);
     draw_status(CBM_POSITION, FILES_HEIGHT, directory, device, 0, focus);
 
     return 2;
@@ -1005,13 +999,87 @@ uint8_t copy_single_file(uint8_t dstdevice, directory_entry_t* directory, uint16
     entry = get_index_entry(directory, index);
     if (entry == 0) return 0xff;
 
-    draw_process(entry->name, "copying");
+    draw_process(entry->name, "copy");
+    combined = copy_file(dstdevice, entry, srcdevice);
+    draw_result2(dstdevice, srcdevice, combined);
+    return 0;
+}
+
+uint8_t copy_all_files(uint8_t dstdevice, directory_entry_t* directory, uint8_t srcdevice)
+{
+    directory_entry_t* entry;
+    uint8_t combined;
+    uint16_t index = 0;
+    uint16_t count;
     
-    combined = copy_file(dstdevice, entry->name, srcdevice);
-    draw_result(dstdevice, srcdevice, combined);
+    count = get_index_max(directory);
+    for (index=1; index<=count; index++) {
+        entry = get_index_entry(directory, index);
+        if (entry->flags & 0x80) continue;
+        
+        draw_process(entry->name, "copy");
+        combined = copy_file(dstdevice, entry, srcdevice);
+        draw_result2(dstdevice, srcdevice, combined);
+    }
+
+    return 0;
 }
 
 
+uint8_t delete_single_file(directory_entry_t* directory, uint16_t index, uint8_t device)
+{
+    uint8_t retval;
+    directory_entry_t* entry;
+    uint16_t n;
+    char textline[25];
+
+    entry = get_index_entry(directory, index);
+    n = sprintf(textline, "s0:%s", entry->name);
+    textline[n] = 0;
+
+    if (device > 0) {
+        // iec device
+        cbm_k_setlfs(15, device, 15);
+        cbm_k_setnam(textline);
+        retval = cbm_k_open();
+        cbm_k_close(15);
+    } else {
+        // efs
+        EFS_setnam_wrapper(textline, strlen(textline));
+        EFS_setlfs_wrapper(0);
+        retval = EFS_open_wrapper(0);
+        EFS_close_wrapper();
+    }
+
+    draw_result1(device, retval);
+    return 0;
+}
+
+uint8_t format_efs()
+{
+    bool ok;
+    
+    // are you sure
+    ok = draw_confirmation("Formatting. ");
+    if (!ok) return 0;
+
+    EFS_format_wrapper();
+    clear_result();
+    
+    return 0x11;
+}
+
+uint8_t defragment_efs()
+{
+
+    gotoxy(1,24);
+    cprintf("Defragmenting ... may take a while");
+        
+    EFS_defragment_wrapper();
+    clear_result();
+
+    return 0;
+}
 
 void main(void)
 {
@@ -1036,8 +1104,8 @@ void main(void)
     draw_help();
     update_help(focus);
 
-    draw_editor_listdisplay(EFS_POSITION, FILES_HEIGHT, "efs", NULL, true);
-    draw_editor_listdisplay(CBM_POSITION, FILES_HEIGHT, "cbm", NULL, false);
+    draw_listdisplay(EFS_POSITION, FILES_HEIGHT, "efs", NULL, true);
+    draw_listdisplay(CBM_POSITION, FILES_HEIGHT, "cbm", NULL, false);
 
     directory_efs = NULL;
     directory_cbm = NULL;
@@ -1047,15 +1115,6 @@ void main(void)
     directory_cbm = filemanager_init(directory_cbm, 256);
     filemanager_empty_directory(directory_cbm);
     
-//    filemanager_busy_indicator_column(EFS_POSITION);
-//    retval = filemanager_get_directory(directory_efs, 0);
-//    draw_editor_listdisplay_header(EFS_POSITION, get_headline(directory_efs), (focus==1));
-//    draw_status(EFS_POSITION, FILES_HEIGHT, directory_efs, 0, retval, (focus==1));
-    
-//    draw_editor_listfocus(EFS_POSITION, FILES_HEIGHT, true);
-//    draw_editor_listfocus(CBM_POSITION, FILES_HEIGHT, false);
-//    focus = 1;
-
     repaint = 0b00010001;
     
     while (kbhit()) cgetc();
@@ -1066,20 +1125,20 @@ void main(void)
                 clear_listcontent(EFS_POSITION, FILES_HEIGHT);
                 filemanager_busy_indicator_column(EFS_POSITION);
                 retval = filemanager_get_directory(directory_efs, 0);
-                draw_editor_listdisplay_header(EFS_POSITION, get_headline(directory_efs), (focus==1));
+                draw_listdisplay_header(EFS_POSITION, get_headline(directory_efs), (focus==1));
                 draw_status(EFS_POSITION, FILES_HEIGHT, directory_efs, 0, retval, (focus==1));
             }
             if (repaint & 0x20) {
                 clear_listcontent(CBM_POSITION, FILES_HEIGHT);
                 filemanager_busy_indicator_column(CBM_POSITION);
                 retval = filemanager_get_directory(directory_cbm, device);
-                draw_editor_listdisplay_header(CBM_POSITION, get_headline(directory_efs), (focus==2));
+                draw_listdisplay_header(CBM_POSITION, get_headline(directory_efs), (focus==2));
                 draw_status(CBM_POSITION, FILES_HEIGHT, directory_cbm, device, retval, (focus==2));
             }
         
         
-            if (repaint & 0x01) draw_listcontent(EFS_POSITION, FILES_HEIGHT, directory_efs, index_efs, &page_efs);
-            if (repaint & 0x02) draw_listcontent(CBM_POSITION, FILES_HEIGHT, directory_cbm, index_cbm, &page_cbm);
+            if (repaint & 0x01) draw_listcontent(EFS_POSITION, FILES_HEIGHT, directory_efs, index_efs, &page_efs, (focus==1));
+            if (repaint & 0x02) draw_listcontent(CBM_POSITION, FILES_HEIGHT, directory_cbm, index_cbm, &page_cbm, (focus==2));
             repaint = 0;
         }
         
@@ -1091,8 +1150,8 @@ void main(void)
         
         switch (retval) {
             case 0x5f: // back arrow
-                // ### call menu ###
-                return;
+                GAME_startup_menu_wrapper();
+                break;
 
             case 0x11: // down
                 if (focus == 1) {
@@ -1133,15 +1192,15 @@ void main(void)
                 break;
 
             case 0x85: // F1 focus on efs
-                draw_editor_listfocus(EFS_POSITION, FILES_HEIGHT, true);
-                draw_editor_listfocus(CBM_POSITION, FILES_HEIGHT, false);
+                draw_listfocus(EFS_POSITION, FILES_HEIGHT, true);
+                draw_listfocus(CBM_POSITION, FILES_HEIGHT, false);
                 focus = 1;
                 repaint = 3;
                 update_help(focus);
                 break;
             case 0x86: // F3 focus on cbm
-                draw_editor_listfocus(EFS_POSITION, FILES_HEIGHT, false);
-                draw_editor_listfocus(CBM_POSITION, FILES_HEIGHT, true);
+                draw_listfocus(EFS_POSITION, FILES_HEIGHT, false);
+                draw_listfocus(CBM_POSITION, FILES_HEIGHT, true);
                 focus = 2;
                 repaint = 3;
                 update_help(focus);
@@ -1156,6 +1215,16 @@ void main(void)
                 if (device == 0) device = 8;
                 repaint = check_for_device(directory_cbm, device, (focus==2));
                 break;
+
+            case 'f': // format
+                repaint = format_efs();
+                if (repaint > 0) index_efs = 1;
+                break;
+
+            case 'v': // defragment
+                defragment_efs();
+                break;
+
             case 'i': // identify
                 if (focus == 1) {
                     identify_single_file(directory_efs, index_efs, 0);
@@ -1165,17 +1234,41 @@ void main(void)
                 }
                 break;
 
+            case 'd': // delete
+                if (focus == 1) {
+                    delete_single_file(directory_efs, index_efs, 0);
+                    if (index_efs > 0) index_efs--;
+                    repaint = 0x11;
+                } else {
+                    if (device == 0) break;
+                    delete_single_file(directory_cbm, index_cbm, device);
+                    if (index_cbm > 0) index_cbm--;
+                    repaint = 0x22;
+                }
+                break;
+
             case 'c': // copy single file
                 if (device == 0) break;
                 if (focus == 1) {
                     // copy to drv
                     copy_single_file(device, directory_efs, index_efs, 0);
-                    // ### rebuild dir directory
                     repaint = 0x22;
                 } else {
                     // copy to efs
                     copy_single_file(0, directory_cbm, index_cbm, device);
-                    // ### rebuild efs directory
+                    repaint = 0x11;
+                }
+                break;
+
+            case 'a': // copy all files
+                if (device == 0) break;
+                if (focus == 1) {
+                    // copy to drv
+                    copy_all_files(device, directory_efs, 0);
+                    repaint = 0x22;
+                } else {
+                    // copy to efs
+                    copy_all_files(0, directory_cbm, device);
                     repaint = 0x11;
                 }
                 break;

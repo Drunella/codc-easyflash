@@ -58,6 +58,7 @@ uint8_t __fastcall__ cbm_device_last_statuscode(void);
 void __fastcall__ cbm_device_get_status(uint8_t device);
 uint8_t __fastcall__ cbm_device_ispresent(uint8_t device);
 
+void __fastcall__ GAME_startup_menu_wrapper(void);
 uint8_t __fastcall__ C_cvlinechar(void);
 uint8_t __fastcall__ C_chlinechar(void);
 uint8_t __fastcall__ SYS_get_system(void);

@@ -47,6 +47,7 @@
 .export _cbm_device_get_status
 .export _cbm_device_ispresent
 
+.export _GAME_startup_menu_wrapper
 .export _C_cvlinechar
 .export _C_chlinechar
 .export _SYS_get_system
@@ -528,6 +529,11 @@
 
 ; ------------------------------------------------------------------------
 ; sys helper
+
+    ; void __fastcall SYS_start_menu:
+    _GAME_startup_menu_wrapper:
+        jmp GAME_startup_menu
+
 
     ; uint8_t __fastcall__ C_cvlinechar()
     _C_cvlinechar:
