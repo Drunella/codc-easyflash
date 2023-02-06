@@ -1,6 +1,4 @@
-# The Castles of Doctor Creep
-
-# License and Copyright
+# The Castles of Doctor Creep 
 
 Download the d64 file from:
 https://csdb.dk/release/?id=145120

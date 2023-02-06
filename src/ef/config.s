@@ -33,7 +33,7 @@
         .byte 0, 0, 0
 
         .byte $03
-        ;    bank lo/hi addr mode size
+        ;    bank lo/hi-addr mode size
         .byte $00, $00, $a0, $d0,   0  ; area 0: bank 0, $a000, mode lhlh, ignore size
         .byte  32, $00, $80, $d0,  32  ; area 1: lower banks
         .byte  48, $00, $80, $d0,  32  ; area 2: upper banks
@@ -41,9 +41,11 @@
         .addr __CONFIG_RUN__ + efs_defragment_warning_offset
         .addr __CONFIG_RUN__ + efs_defragment_allclear_offset
         .byte $00, $00   ; empty
+        .byte $00, $00, $00, $00
+        .byte $00, $00, $00, $00
 
     efs_config_size = * - efs_config
-    .if efs_config_size <> 32
+    .if efs_config_size <> 40
     .error "efs_config size mismatch"
     .endif
 

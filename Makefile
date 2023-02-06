@@ -30,7 +30,7 @@ CC65FLAGS=-t $(TARGET) -O
 .PHONY: clean all easyflash mrproper
 
 # original disks
-CASTLEDISK=./disks/castle.g64
+CASTLEDISK=./disks/castle.?64
 CASTLE3DISK=./disks/castle3.d64
 
 # all
