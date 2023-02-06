@@ -1,6 +1,6 @@
 # The Castles of Doctor Creep EasyFlash
 This is the source to build an EasyFlash version from original 
-and remastered C64 The Castles of Doctor Creep
+and remastered The Castles of Doctor Creep on the C64.
 
 ## Features
 * Save your games and best times on EasyFlash
@@ -53,6 +53,7 @@ has not been tested thoroughly.
 The code is © 2023 Drunella, available under an Apache 2.0 license.
 
 The original The Castles of Doctor Creep is © 1984 br0derbund software.
+
 The remastered version has been re-engineered by DrHonz.
 
 No copy of the original or remastered game is included in this repository.
