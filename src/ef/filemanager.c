@@ -503,7 +503,7 @@ uint8_t filemanager_get_directory(directory_entry_t* directory, uint8_t device)
                     state++;
                 }
                 break;
-            case 13: // quotation mark or end of line
+            case 13: // quotation mark or end of dir
                 if (value == 0) { // end of directory
                     directory[entry].name[0] = 0;
                     directory[entry].flags = 0xff;
@@ -578,7 +578,7 @@ char* identity_to_text(uint8_t ident)
          case 0x13:
              return "remastered castle";
         default:
-            return "unknown file";
+             return "other file";
     }
 }
 

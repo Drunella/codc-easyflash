@@ -29,32 +29,27 @@
 
 .segment "IO_WRAPPER"
 
-    ; starts at $1e8f
-    ; should not exceed 128 bytes
-
-;    check_disk:
-;        rts
+    ; starts at $2c10
+    ; should not exceed 199 bytes
 
     wrapper_readst:
-        ; @ &1e90
+        ; @ 
         jmp EFS_readst
 
     wrapper_setlfs:
-        ; @ $1e93
+        ; @ 
         jmp EFS_setlfs
 
     wrapper_setnam:
-        ; @ $1e96
+        ; @ 
         jmp EFS_setnam
 
     wrapper_load:
-        ; @ $1e99
-;        jsr wrapper_enter
+        ; @ 
         jmp EFS_load
-;        jmp wrapper_leave
 
     wrapper_save:
-        ; @ $1ea2
+        ; @ 
         jsr wrapper_enter
         jsr EFS_save
         jmp wrapper_leave
@@ -108,6 +103,12 @@
         ; init eapi
         lda #$04     ; load to $0400
         jsr EFS_init_eapi
+
+        ; restore config
+        lda wrapper_memory_conf
+        sta $01
+        lda #$04     ; bankout
+        sta $de02
 
         pla
         tax
