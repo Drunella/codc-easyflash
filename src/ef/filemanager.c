@@ -788,7 +788,7 @@ void draw_status(uint8_t y, uint8_t height, directory_entry_t* directory, uint8_
 
     index = directory[0].size + 1;
     if (error == 0) {
-        snprintf(line, FILES_WIDTH-2, "%d blocks free", directory[index].size);
+        snprintf(line, FILES_WIDTH-2, "%u blocks free", directory[index].size);
     } else {
         snprintf(line, FILES_WIDTH-2, "%s", text);
     }
@@ -943,7 +943,7 @@ void draw_listcontent(uint8_t y, uint8_t height, directory_entry_t* directory, u
 }
 
 
-uint8_t check_for_device(directory_entry_t* directory, uint8_t device, bool focus)
+uint8_t reload_directory(directory_entry_t* directory, uint8_t device, bool focus)
 {
     uint8_t retval;
     char text[10];
@@ -952,11 +952,11 @@ uint8_t check_for_device(directory_entry_t* directory, uint8_t device, bool focu
     draw_listdisplay_header(CBM_POSITION, text, focus);
     clear_listcontent(CBM_POSITION, FILES_HEIGHT);
 
-    retval = cbm_device_ispresent(device);
+    /*retval = cbm_device_ispresent(device);
     if (retval == 1) {
         draw_status(CBM_POSITION, FILES_HEIGHT, directory, device, retval, focus);
         return 0;
-    }
+    }*/
 
     filemanager_busy_indicator_column(CBM_POSITION);
     retval = filemanager_get_directory(directory, device);
@@ -1089,6 +1089,7 @@ void main(void)
     uint16_t page_efs, page_cbm;
     uint8_t retval, focus;
     uint16_t position;
+    uint8_t devices[5];
 
     // init
     clrscr();
@@ -1114,6 +1115,30 @@ void main(void)
     directory_cbm = filemanager_init(directory_cbm, 256);
     filemanager_empty_directory(directory_cbm);
     
+    device = 0;
+    if (cbm_device_ispresent(8) == 0) {
+        devices[device] = 8;
+        device++;
+        //cputcxy(36,23, '8');
+    }
+    if (cbm_device_ispresent(9) == 0) {
+        devices[device] = 9;
+        device++;
+        //cputcxy(37,23, '9');
+    }
+    if (cbm_device_ispresent(10) == 0) {
+        devices[device] = 10;
+        device++;
+        //cputcxy(38,23, '0');
+    }
+    if (cbm_device_ispresent(11) == 0) {
+        devices[device] = 11;
+        device++;
+        //cputcxy(39,23, '1');
+    }
+    devices[device] = 0xff;
+    device = 0;
+    
     repaint = 0b00010001;
     
     while (kbhit()) cgetc();
@@ -1129,10 +1154,12 @@ void main(void)
             }
             if (repaint & 0x20) {
                 clear_listcontent(CBM_POSITION, FILES_HEIGHT);
-                filemanager_busy_indicator_column(CBM_POSITION);
-                retval = filemanager_get_directory(directory_cbm, device);
-                draw_listdisplay_header(CBM_POSITION, get_headline(directory_efs), (focus==2));
-                draw_status(CBM_POSITION, FILES_HEIGHT, directory_cbm, device, retval, (focus==2));
+                if (devices[0] != 0xff) {
+                    filemanager_busy_indicator_column(CBM_POSITION);
+                    retval = filemanager_get_directory(directory_cbm, devices[device]);
+                    draw_listdisplay_header(CBM_POSITION, get_headline(directory_cbm), (focus==2));
+                    draw_status(CBM_POSITION, FILES_HEIGHT, directory_cbm, devices[device], retval, (focus==2));
+                }
             }
         
             if (repaint & 0x01) {
@@ -1208,14 +1235,14 @@ void main(void)
                 update_help(focus);
                 break;
             case 0x87: // F5 change drive
-                if (device == 0) device = 8;
-                else device++;
-                if (device == 12) device = 8;
-                repaint = check_for_device(directory_cbm, device, (focus==2));
+                if (devices[0] == 0xff) break;
+                device++;
+                if (devices[device] == 0xff) device = 0;
+                repaint = reload_directory(directory_cbm, devices[device], (focus==2));
                 break;
             case 0x88: // F7 reload dir
-                if (device == 0) device = 8;
-                repaint = check_for_device(directory_cbm, device, (focus==2));
+                if (devices[0] == 0xff) break;
+                repaint = reload_directory(directory_cbm, devices[device], (focus==2));
                 break;
 
             case 'f': // format
@@ -1228,49 +1255,49 @@ void main(void)
                 break;
 
             case 'i': // identify
+                if (devices[0] == 0xff) break;
                 if (focus == 1) {
                     identify_single_file(directory_efs, index_efs, 0);
                 } else {
-                    if (device == 0) break;
-                    identify_single_file(directory_cbm, index_cbm, device);
+                    identify_single_file(directory_cbm, index_cbm, devices[device]);
                 }
                 break;
 
             case 'd': // delete
+                if (devices[0] == 0xff) break;
                 if (focus == 1) {
                     delete_single_file(directory_efs, index_efs, 0);
                     if (index_efs > 1) index_efs--;
                     repaint = 0x11;
                 } else {
-                    if (device == 0) break;
-                    delete_single_file(directory_cbm, index_cbm, device);
+                    delete_single_file(directory_cbm, index_cbm, devices[device]);
                     if (index_cbm > 1) index_cbm--;
                     repaint = 0x22;
                 }
                 break;
 
             case 'c': // copy single file
-                if (device == 0) break;
+                if (devices[0] == 0xff) break;
                 if (focus == 1) {
                     // copy to drv
-                    copy_single_file(device, directory_efs, index_efs, 0);
+                    copy_single_file(devices[device], directory_efs, index_efs, 0);
                     repaint = 0x22;
                 } else {
                     // copy to efs
-                    copy_single_file(0, directory_cbm, index_cbm, device);
+                    copy_single_file(0, directory_cbm, index_cbm, devices[device]);
                     repaint = 0x11;
                 }
                 break;
 
             case 'a': // copy all files
-                if (device == 0) break;
+                if (devices[0] == 0xff) break;
                 if (focus == 1) {
                     // copy to drv
-                    copy_all_files(device, directory_efs, 0);
+                    copy_all_files(devices[device], directory_efs, 0);
                     repaint = 0x22;
                 } else {
                     // copy to efs
-                    copy_all_files(0, directory_cbm, device);
+                    copy_all_files(0, directory_cbm, devices[device]);
                     repaint = 0x11;
                 }
                 break;

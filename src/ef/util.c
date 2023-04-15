@@ -146,3 +146,13 @@ char* get_system_string()
     }
 }
 
+char* get_sid_string()
+{
+    uint8_t s = SYS_get_sid();
+    switch(s) {
+        case 1: return "SID6581"; break;
+        case 2: return "SID8580"; break;
+        default: return ""; break;
+    }
+}
+

@@ -62,7 +62,9 @@ void __fastcall__ GAME_startup_menu_wrapper(void);
 uint8_t __fastcall__ C_cvlinechar(void);
 uint8_t __fastcall__ C_chlinechar(void);
 uint8_t __fastcall__ SYS_get_system(void);
+uint8_t __fastcall__ SYS_get_sid();
 char* get_system_string(void);
+char* get_sid_string(void);
 void __fastcall__ TIMER_reset(void);
 uint32_t __fastcall__ TIMER_measure(void);
 

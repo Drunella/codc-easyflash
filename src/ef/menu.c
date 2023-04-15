@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <conio.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "util.h"
 
@@ -51,6 +52,11 @@ static void draw_version_and_system()
     system = get_system_string();
     cputsxy(0, 24, system);
     cputs(" C64");
+    system = get_sid_string();
+    if (strlen(system) > 0) {
+        cputs(", ");
+        cputs(system);
+    }
 
     n = sprintf(text, "v%d.%d.%d", get_version_major(), get_version_minor(), get_version_patch());
     cputsxy(39-n, 24, text);
