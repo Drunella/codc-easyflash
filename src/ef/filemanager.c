@@ -22,6 +22,8 @@
 #include <string.h>
 #include <cbm.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <cbm_filetype.h>
 
 #include "util.h"
 
@@ -285,6 +287,30 @@ directory_entry_t* filemanager_exit(directory_entry_t* directory)
 }
 
 
+uint8_t dirent_to_type(uint8_t access, uint8_t type)
+{
+    uint8_t flags;
+    
+    flags = 1;
+    
+    switch (type) {
+        case _CBM_T_PRG: flags = 0x01; break;
+        case _CBM_T_SEQ: flags = 0x02; break;
+        case _CBM_T_USR: flags = 0x03; break;
+        case _CBM_T_REL: flags = 0x04; break;
+        case _CBM_T_DEL: flags = 0x20; break;
+        case _CBM_T_CBM: flags = 0x05; break;
+        case _CBM_T_DIR: flags = 0x40; break;
+        default: flags = 0x20; break;
+    }
+    
+    if (access == CBM_A_RO) flags |= 0x80; // write protected
+
+    
+
+    return flags;
+}
+
 uint8_t text_to_type(char* type)
 {
     // SEQ, USR, REL, DEL, CBM, DIR
@@ -371,33 +397,69 @@ void filemanager_empty_directory(directory_entry_t* destination)
 }
 
 
-// ### opendir, readdir, closedir 
-/*uint8_t filemanager_get_directory_cbm(directory_entry_t* directory, uint8_t device)
+// opendir, readdir, closedir 
+uint8_t filemanager_get_directory_cbm(directory_entry_t* directory, uint8_t device)
 {
-    struct cbm_dirent l_dirent;
-    uint8_t retval;    
+    struct cbm_dirent dirent;
+    uint8_t retval;
+    bool working = true;
+    uint16_t entry;
     
     filemanager_empty_directory(directory);
     
     filemanager_busy_indicator();
     
-    retval = cbm_opendir(device, device);
+    retval = cbm_opendir(1, device);
     if (retval != 0) {
         cbm_closedir(device);
         filemanager_done_indicator();
         return retval;    
     }
     
-    while (true) {
+    directory[0].size = 0; // disk name
+    directory[0].flags = 0; // disk name
+    entry = 0;
+
+    while (working) {
         
-    
+        retval = cbm_readdir(1, &dirent);
+        switch (retval) {
+            case 0:
+                strcpy(directory[entry].name, dirent.name);
+                if (dirent.type == _CBM_T_HEADER) { // dir header
+                    directory[0].size = 0;
+                    directory[0].flags = 0;
+                } else {
+                    directory[entry].size = dirent.size;
+                    directory[entry].flags = dirent_to_type(dirent.access, dirent.type);
+                }
+                entry++;
+            
+                break;
+            case 2: // blocks free and end
+                directory[entry].name[0] = 0;
+                directory[entry].flags = 0xff;
+                directory[entry].size = dirent.size;
+                directory[0].size = entry - 1;
+                working = false;
+                break;
+            case 1: // error
+            case 3: // error
+            case 4: // error
+            case 5: // error
+            case 6: // error
+                return retval;
+            default:
+                return 0xfe;
+        }
     
         filemanager_busy_indicator();
     }
     
+    cbm_closedir(1);
     filemanager_done_indicator();
     return 0;
-}*/
+}
 
 
 uint8_t filemanager_get_directory(directory_entry_t* directory, uint8_t device)
@@ -959,7 +1021,11 @@ uint8_t reload_directory(directory_entry_t* directory, uint8_t device, bool focu
     }*/
 
     filemanager_busy_indicator_column(CBM_POSITION);
-    retval = filemanager_get_directory(directory, device);
+    if (device == 0) {
+        retval = filemanager_get_directory(directory, device);
+    } else {
+        retval = filemanager_get_directory_cbm(directory, device); // cbm
+    }
     if (retval == 0) draw_listdisplay_header(CBM_POSITION, get_headline(directory), focus);
     draw_status(CBM_POSITION, FILES_HEIGHT, directory, device, 0, focus);
 
@@ -1156,7 +1222,7 @@ void main(void)
                 clear_listcontent(CBM_POSITION, FILES_HEIGHT);
                 if (devices[0] != 0xff) {
                     filemanager_busy_indicator_column(CBM_POSITION);
-                    retval = filemanager_get_directory(directory_cbm, devices[device]);
+                    retval = filemanager_get_directory_cbm(directory_cbm, devices[device]); // cbm
                     draw_listdisplay_header(CBM_POSITION, get_headline(directory_cbm), (focus==2));
                     draw_status(CBM_POSITION, FILES_HEIGHT, directory_cbm, devices[device], retval, (focus==2));
                 }

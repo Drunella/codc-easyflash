@@ -4,8 +4,7 @@ ToDo
 - copy rw files also to ro area
 - copy Y3... files to Y... after formating
 - tell to format prior to playing
-- iec2sd does not work on hardware for file manager
-
+- scrolling has errors
 
 Done
 ====
