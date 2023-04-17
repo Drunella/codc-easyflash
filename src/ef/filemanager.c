@@ -660,15 +660,15 @@ uint8_t get_index_max(directory_entry_t* directory)
 
 uint8_t next_item(directory_entry_t* directory, uint16_t index, uint16_t step)
 {
-    if (index+step >= get_index_max(directory)) return get_index_max(directory);
-    index += step;
+    if (index+step >= get_index_max(directory)) index = get_index_max(directory);
+    else index += step;
     return index;
 }
 
 uint8_t previous_item(uint16_t index, uint16_t step)
 {
-    if (step >= index) return 1;
-    index -= step;
+    if (step >= index) index = 1;
+    else index -= step;
     return index;
 }
 

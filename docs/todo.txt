@@ -1,20 +1,11 @@
 ToDo
 ====
 
-- copy rw files also to ro area
-- copy Y3... files to Y... after formating
-- tell to format prior to playing
-- scrolling has errors
+- (?) change directory in filemanager
 
-Done
-====
 
-save game management
-
-copy file to disk
-copy file to flash
-copy several files to disk
-copy several files to flash
+notes
+=====
 
 automatically rename
 ZCASTLE to zCASTLE (for remastered)

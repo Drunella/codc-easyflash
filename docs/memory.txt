@@ -44,7 +44,7 @@ Cartridge Memory Map
      1B00      config
      1C00      
      1D00      
-     1E00      [loader]
+     1E00      [loader.s]
      1F00      Startup Code & Reset Vector (init.s)
 
 01:0:0000      [efs data]
